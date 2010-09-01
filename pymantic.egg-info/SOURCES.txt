@@ -1,0 +1,9 @@
+setup.cfg
+setup.py
+pymantic/__init__.py
+pymantic.egg-info/PKG-INFO
+pymantic.egg-info/SOURCES.txt
+pymantic.egg-info/dependency_links.txt
+pymantic.egg-info/entry_points.txt
+pymantic.egg-info/not-zip-safe
+pymantic.egg-info/top_level.txt

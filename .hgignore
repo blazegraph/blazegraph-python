@@ -1,0 +1,13 @@
+syntax: glob
+*.pyc
+*~
+*.wpu
+build
+include
+data
+dist
+lib
+bin
+*.swp
+*.db
+.DS_Store
