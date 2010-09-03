@@ -1,6 +1,7 @@
 setup.cfg
 setup.py
 pymantic/RDF.py
+pymantic/SPARQL.py
 pymantic/__init__.py
 pymantic/uri_schemes.py
 pymantic/util.py
