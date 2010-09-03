@@ -10,6 +10,17 @@ Contents:
 
 .. toctree::
    :maxdepth: 2
+   
+Module Listing
+--------------
+
+.. toctree::
+    :maxdepth: 2
+    
+    modules/RDF
+    modules/SPARQL
+    modules/util
+
 
 Indices and tables
 ==================

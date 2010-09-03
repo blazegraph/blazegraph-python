@@ -38,7 +38,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Pymantic'
-copyright = u'2010, Gavin Carothers, Nick Pilon'
+copyright = u"2010, O'Reilly Media, Inc; Gavin Carothers; Nick Pilon"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
