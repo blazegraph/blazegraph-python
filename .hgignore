@@ -3,6 +3,7 @@ syntax: glob
 *~
 *.wpu
 build
+_build
 include
 data
 dist
