@@ -8,9 +8,8 @@ Semantic Web and RDF library for Python
 
 Quick Start
 ===========
+:: 
 
-.. code-block :: python
-    
     >>> import pymantic
     >>> resource = Resource.in_graph(graph, 'http://example.com/resource')
 
@@ -24,7 +23,7 @@ Pymantic requires Python 2.5 or higher. rdflib is currently used to provide RDF 
 Install
 =======
 
-.. code-block :: bash
+:: 
 
     $ python setup.py install
 
@@ -36,7 +35,7 @@ Documentation
 
 Generating a local copy of the documentation requires Sphinx:
 
-.. code-block :: bash
+:: 
     $ easy_install Sphinx
 
 
