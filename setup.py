@@ -27,7 +27,7 @@ setup(name='pymantic',
           "rdflib>=2.4.1,<3a",
           'httplib2',
           'lxml',
-          'mock_http',
+          #'mock_http',
           ],
       entry_points="""
       # -*- Entry points: -*-

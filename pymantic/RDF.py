@@ -163,34 +163,9 @@ class Resource(object):
         self.graph = graph
         self.subject = subject
         if not self.check_classification():
-            parsed_subject = urlparse.urlparse(self.subject)
-            if hasattr(graph, "retrieve_http") and graph.retrieve_http and \
-               (not hasattr(graph, "retrieved_uris") or \
-                self.subject not in graph.retrieved_uris) and \
-               parsed_subject.scheme == 'http':
-                if not hasattr(graph, "retrieved_uris"):
-                    graph.retrieved_uris = set()
-                if self.valid_retrieve_url(graph, self.subject):
-                    if hasattr(graph, 'http_cache'):
-                        cache = graph.http_cache
-                    else:
-                        cache = None
-                    http = httplib2.Http(cache=cache)
-                    resp, metadata = http.request(uri=str(self.subject),
-                                                  method='GET')
-                    if resp['status'] == '200':
-                        publicID=urlparse.urlunparse((parsed_subject.scheme,
-                                                      parsed_subject.netloc,
-                                                      parsed_subject.path,
-                                                      '', '', ''))
-                        graph.parse(StringIO(metadata), publicID=publicID)
-                        graph.retrieved_uris.add(self.subject)
-                        if self.check_classification():
-                            return
-                    else:
-                        log.warn('Could not retrieve %s: %s', self.subject,
-                                 resp['status'])
-            raise ClassificationMismatchError()
+            retrieve_resource(graph, subject)
+            if not self.check_classification():
+                raise ClassificationMismatchError()
     
     def valid_retrieve_url(self, graph, url):
         if hasattr(graph, 'retrieve_http_whitelist'):
@@ -234,7 +209,7 @@ class Resource(object):
             return self.subject == other.subject
         elif isinstance(other, rdflib.URIRef) or isinstance(other, str) or\
              isinstance(other, unicode):
-            return self.subject == other 
+            return unicode(self.subject) == unicode(other)
         return NotImplemented
     
     def __ne__(self, other):
@@ -266,6 +241,14 @@ class Resource(object):
                     yield self._possibly_instantiate(self.graph, obj)
             return getitem_iter_results()
     
+    # Set item
+    
+    # Delete item
+    
+    # Membership test
+    
+    # Iteration
+    
     def __repr__(self):
         return "<%r: %r %r>" % (type(self), self.graph, self.subject)
     
@@ -279,9 +262,15 @@ class Resource(object):
     def _possibly_instantiate(cls, graph, obj):
         if isinstance(obj, rdflib.Literal):
             return obj
+        if (obj, cls.resolve('rdf:type'), None) not in graph:
+            retrieve_resource(graph, obj)
+            if (obj, cls.resolve('rdf:type'), None) not in graph:
+                return Resource(graph, obj)
         types = tuple(sorted(graph.objects(obj, cls.resolve('rdf:type'))))
         python_classes = tuple(self.__metaclass__._classes[t] for t in types)
-        if len(python_classes) == 1:
+        if len(python_classes) == 0:
+            return Resource(graph, obj)
+        elif len(python_classes) == 1:
             return python_classes[0](graph, obj)
         else:
             if types not in self.__metaclass__._classes:
@@ -291,6 +280,48 @@ class Resource(object):
                     python_classes, {'_autocreate': True})
                 self.__metaclass__._classes[types] = the_class
             return self.__metaclass__._classes[types]
+
+def retrieve_resource(graph, subject):
+    """Attempt to retrieve an RDF resource VIA HTTP."""
+    parsed_subject = urlparse.urlparse(self.subject)
+    publicID=urlparse.urlunparse((parsed_subject.scheme,
+                                  parsed_subject.netloc,
+                                  parsed_subject.path,
+                                  '', '', ''))
+    if hasattr(graph, "retrieve_http") and graph.retrieve_http and \
+       (not hasattr(graph, "retrieved_uris") or \
+        publicID not in graph.retrieved_uris) and \
+       (parsed_subject.scheme == 'http' or parsed_subject.scheme == 'https'):
+        if not hasattr(graph, "retrieved_uris"):
+            graph.retrieved_uris = set()
+        if _valid_retrieve_url(graph, self.subject):
+            if hasattr(graph, 'http_cache'):
+                cache = graph.http_cache
+            else:
+                cache = None
+            http = httplib2.Http(cache=cache)
+            resp, content = http.request(uri=str(publicID), method='GET')
+            if resp['status'] == '200':
+                graph.parse(StringIO(content), publicID=publicID)
+                graph.retrieved_uris.add(publicID)
+            else:
+                log.debug('Could not retrieve %s: %s', publicID, resp['status'])
+
+def _valid_retrieve_url(graph, url):
+    if hasattr(graph, 'retrieve_http_whitelist'):
+        for entry in graph.retrieve_http_whitelist:
+            regex = re.compile(entry)
+            if regex.match(url):
+                log.debug('%s passed whitelist under %s', url, entry)
+                return True
+        return False
+    if hasattr(graph, 'retrieve_http_blacklist'):
+        for entry in graph.retrieve_http_blacklist:
+            regex = re.compile(entry)
+            if regex.match(url):
+                log.debug('%s failed blacklist under %s', url, entry)
+                return False
+    return True
 
 class Property(Resource):
     """A rdf:Property."""
