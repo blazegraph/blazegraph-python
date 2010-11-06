@@ -85,6 +85,9 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
                 return uri.replace(namespace, prefix + seperator)
     return uri
 
+# TODO: Is it possible that, rather than inheriting from Resource,
+#  MetaResource should perform all the necessary bindings?
+
 class MetaResource(type):
     """Aggregates namespace information.
     
@@ -156,18 +159,16 @@ class Resource(object):
     
     namespaces = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
                   'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'}
-    
-    classification_predicate = 'rdf:type'
-    
+        
     def __init__(self, graph, subject):
         self.graph = graph
         if not isinstance(subject, rdflib.URIRef):
             subject = rdflib.URIRef(subject)
         self.subject = subject
-        if not self.check_classification():
-            retrieve_resource(graph, subject)
-            if not self.check_classification():
-                raise ClassificationMismatchError()
+        #if not self.check_classification():
+            #retrieve_resource(graph, subject)
+            #if not self.check_classification():
+                #raise ClassificationMismatchError()
     
     def valid_retrieve_url(self, graph, url):
         if hasattr(graph, 'retrieve_http_whitelist'):
@@ -187,17 +188,7 @@ class Resource(object):
     
     def check_classification(self):
         if hasattr(self, 'classification_value'):
-            classes = set(self[self.classification_predicate])
-            if isinstance(self.classification_value, str) or\
-               isinstance(self.classification_value, unicode):
-                classification_values = [self.classification_value]
-            else:
-                classification_values = self.classification_value
-            classification_values = set(self.resolve(classification_value) for\
-                                     classification_value in\
-                                     classification_values)
-            if classification_values.intersection(classes):
-                return True
+            return True
         else:
             return True
         
@@ -236,11 +227,11 @@ class Resource(object):
                    (hasattr(obj, 'lang') and lang_match(lang, obj.lang)) or
                    not hasattr(obj, 'lang')]
         if predicate in self._scalars:
-            return self._possibly_instantiate(self.graph, util.one_or_none(objects))
+            return self.classify(self.graph, util.one_or_none(objects))
         else:
             def getitem_iter_results():
                 for obj in objects:
-                    yield self._possibly_instantiate(self.graph, obj)
+                    yield self.classify(self.graph, obj)
             return getitem_iter_results()
     
     # Set item
@@ -261,7 +252,7 @@ class Resource(object):
             return self.subject
     
     @classmethod
-    def _possibly_instantiate(cls, graph, obj):
+    def classify(cls, graph, obj):
         if isinstance(obj, rdflib.Literal):
             return obj
         if (obj, cls.resolve('rdf:type'), None) not in graph:
@@ -269,19 +260,19 @@ class Resource(object):
             if (obj, cls.resolve('rdf:type'), None) not in graph:
                 return Resource(graph, obj)
         types = tuple(sorted(graph.objects(obj, cls.resolve('rdf:type'))))
-        python_classes = tuple(self.__metaclass__._classes[t] for t in types)
+        python_classes = tuple(cls.__metaclass__._classes[t] for t in types)
         if len(python_classes) == 0:
             return Resource(graph, obj)
         elif len(python_classes) == 1:
             return python_classes[0](graph, obj)
         else:
-            if types not in self.__metaclass__._classes:
-                the_class = self.__metaclass__.__new__(
-                    self.__metaclass__, ''.join(python_class.__name__ for\
-                                                python_class in python_classes),
+            if types not in cls.__metaclass__._classes:
+                the_class = cls.__metaclass__.__new__(
+                    cls.__metaclass__, ''.join(python_class.__name__ for\
+                                               python_class in python_classes),
                     python_classes, {'_autocreate': True})
-                self.__metaclass__._classes[types] = the_class
-            return self.__metaclass__._classes[types]
+                cls.__metaclass__._classes[types] = the_class
+            return cls.__metaclass__._classes[types](graph, obj)
 
 def retrieve_resource(graph, subject):
     """Attempt to retrieve an RDF resource VIA HTTP."""

@@ -6,6 +6,9 @@ import pymantic.RDF
 import pymantic.util
 
 class TestRDF(unittest.TestCase):
+    def tearDown(self):
+        pymantic.RDF.MetaResource._classes = {}
+    
     def testCurieURI(self):
         """Test CURIE parsing of explicit URIs."""
         test_ns = {'http': rdflib.Namespace('WRONG!'),
@@ -121,3 +124,55 @@ class TestRDF(unittest.TestCase):
         self.assertNotEqual(testResource, rdflib.URIRef('bar'))
         self.assertNotEqual(testResource, 'bar')
         self.assertNotEqual(testResource, 42)
+    
+    def testClassification(self):
+        """Test classification of a resource."""
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        test_subject = rdflib.URIRef('http://example.com/athing')
+        graph = rdflib.ConjunctiveGraph()
+        graph.add((test_subject, Offering.resolve('rdf:type'),
+                   Offering.resolve('gr:Offering')))
+        offering = pymantic.RDF.Resource.classify(graph, test_subject)
+        self.assert_(isinstance(offering, Offering))
+    
+    def testMulticlassClassification(self):
+        """Test classification of a resource that matches multiple registered
+        classes."""
+        @pymantic.RDF.register_class('foaf:Organization')
+        class Organization(pymantic.RDF.Resource):
+            namespaces = {
+                'foaf': 'http://xmlns.com/foaf/0.1/',
+            }
+        
+        @pymantic.RDF.register_class('foaf:Group')
+        class Group(pymantic.RDF.Resource):
+            namespaces = {
+                'foaf': 'http://xmlns.com/foaf/0.1/',
+            }
+        
+        test_subject1 = rdflib.URIRef('http://example.com/aorganization')
+        test_subject2 = rdflib.URIRef('http://example.com/agroup')
+        test_subject3 = rdflib.URIRef('http://example.com/aorgandgroup')
+        graph = rdflib.ConjunctiveGraph()
+        graph.add((test_subject1, Organization.resolve('rdf:type'),
+                   Organization.resolve('foaf:Organization')))
+        graph.add((test_subject2, Group.resolve('rdf:type'),
+                   Group.resolve('foaf:Group')))
+        graph.add((test_subject3, Organization.resolve('rdf:type'),
+                   Organization.resolve('foaf:Organization')))
+        graph.add((test_subject3, Organization.resolve('rdf:type'),
+                   Organization.resolve('foaf:Group')))
+        organization = pymantic.RDF.Resource.classify(graph, test_subject1)
+        group = pymantic.RDF.Resource.classify(graph, test_subject2)
+        both = pymantic.RDF.Resource.classify(graph, test_subject3)
+        self.assert_(isinstance(organization, Organization))
+        self.assertFalse(isinstance(organization, Group))
+        self.assertFalse(isinstance(group, Organization))
+        self.assert_(isinstance(group, Group))
+        self.assert_(isinstance(both, Organization))
+        self.assert_(isinstance(both, Group))
