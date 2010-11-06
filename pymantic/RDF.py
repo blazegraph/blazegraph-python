@@ -99,19 +99,28 @@ class MetaResource(type):
     
     def __new__(cls, name, bases, dct):
         namespaces = {}
+        scalars = set()
         for base in bases:
             if hasattr(base, 'namespaces'):
                 namespaces.update(base.namespaces)
+            if hasattr(base, 'scalars'):
+                scalars.update(base.scalars)
         if 'namespaces' in dct:
             for namespace in dct['namespaces']:
                 namespaces[namespace] = rdflib.Namespace(
                     dct['namespaces'][namespace])
         dct['namespaces'] = namespaces
+        if 'scalars' in dct:
+            for scalar in dct['scalars']:
+                scalars.add(parse_curie(scalar, namespaces))
+        dct['scalars'] = scalars
         return type.__new__(cls, name, bases, dct)
 
 def register_class(rdf_type):
     def _register_class(python_class):
+        rdf_class = python_class.resolve(rdf_type)
         MetaResource._classes[python_class.resolve(rdf_type)] = python_class
+        python_class.rdf_classes = frozenset((python_class.resolve(rdf_type),))
         return python_class
     return _register_class
 
@@ -159,38 +168,27 @@ class Resource(object):
     
     namespaces = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
                   'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'}
+    
+    scalars = ['rdfs:label',]
+    
+    lang = 'en'
         
     def __init__(self, graph, subject):
         self.graph = graph
         if not isinstance(subject, rdflib.URIRef):
             subject = rdflib.URIRef(subject)
         self.subject = subject
-        #if not self.check_classification():
-            #retrieve_resource(graph, subject)
-            #if not self.check_classification():
-                #raise ClassificationMismatchError()
-    
-    def valid_retrieve_url(self, graph, url):
-        if hasattr(graph, 'retrieve_http_whitelist'):
-            for entry in graph.retrieve_http_whitelist:
-                regex = re.compile(entry)
-                if regex.match(url):
-                    log.debug('%s passed whitelist under %s', url, entry)
-                    return True
-            return False
-        if hasattr(graph, 'retrieve_http_blacklist'):
-            for entry in graph.retrieve_http_blacklist:
-                regex = re.compile(entry)
-                if regex.match(url):
-                    log.debug('%s failed blacklist under %s', url, entry)
-                    return False
-        return True
+        if not self.check_classification():
+            retrieve_resource(graph, subject)
+            if not self.check_classification():
+                raise ClassificationMismatchError()
     
     def check_classification(self):
-        if hasattr(self, 'classification_value'):
-            return True
-        else:
-            return True
+        if hasattr(self, 'rdf_classes'):
+            for rdf_class in self.rdf_classes:
+                if (self.subject, self.resolve('rdf:type'), rdf_class) not in self.graph:
+                    return False
+        return True
         
     @classmethod
     def resolve(cls, key):
@@ -211,6 +209,17 @@ class Resource(object):
     def __hash__(self):
         return hash(self.subject)
     
+    def safe_graph_add(self, predicate, obj, fallback_lang, fallback_datatype):
+        """Ensures that we're adding appropriate objects to an RDF graph."""
+        if not isinstance(obj, rdflib.Literal) and not isinstance(obj, rdflib.URIRef):
+            obj = rdflib.Literal(obj, lang=fallback_lang, datatype=fallback_datatype)
+        self.graph.add((self.subject, predicate, obj))
+
+    def objects_by(self, predicate, lang, datatype):
+        return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                (hasattr(obj, 'language') and lang_match(lang, obj.language)) or
+                not hasattr(obj, 'language')]
+    
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style."""
         lang = None
@@ -220,13 +229,12 @@ class Resource(object):
                 lang = key[1]
             else:
                 datatype = key[1]
+            key = key[0]
         if lang is None and datatype is None:
             lang = self.lang
         predicate = self.resolve(key)
-        objects = [obj for obj in self.graph.objects(self.subject, predicate) if\
-                   (hasattr(obj, 'lang') and lang_match(lang, obj.lang)) or
-                   not hasattr(obj, 'lang')]
-        if predicate in self._scalars:
+        objects = self.objects_by(predicate, lang, datatype)
+        if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
         else:
             def getitem_iter_results():
@@ -236,6 +244,33 @@ class Resource(object):
     
     # Set item
     
+    def __setitem__(self, key, value):
+        """Sets predicates for this subject by key dictionary-style."""
+        lang = None
+        datatype = None
+        if isinstance(key, tuple) and len(key) >= 2:
+            if is_language(key[1]):
+                lang = key[1]
+            else:
+                datatype = key[1]
+            key = key[0]
+        if lang is None and datatype is None:
+            lang = self.lang
+        predicate = self.resolve(key)
+        objects = self.objects_by(predicate, lang, datatype)
+        for obj in objects:
+            self.graph.remove((self.subject, predicate, obj))
+        
+        if predicate in self.scalars:
+            self.safe_graph_add(predicate, value, lang, datatype)
+        else:
+            if isinstance(value, list) or isinstance(value, tuple) or\
+               isinstance(value, set) or isinstance(value, frozenset):
+                for v in value:
+                    self.safe_graph_add(predicate, v, lang, datatype)
+            else:
+                self.safe_graph_add(predicate, v, lang, datatype)
+    
     # Delete item
     
     # Membership test
@@ -243,11 +278,11 @@ class Resource(object):
     # Iteration
     
     def __repr__(self):
-        return "<%r: %r %r>" % (type(self), self.graph, self.subject)
+        return "<%r: %s>" % (type(self), self.subject)
     
     def __str__(self):
-        if self.label:
-            return self.label
+        if self['rdfs:label']:
+            return self['rdfs:label']
         else:
             return self.subject
     
@@ -259,7 +294,7 @@ class Resource(object):
             retrieve_resource(graph, obj)
             if (obj, cls.resolve('rdf:type'), None) not in graph:
                 return Resource(graph, obj)
-        types = tuple(sorted(graph.objects(obj, cls.resolve('rdf:type'))))
+        types = frozenset(graph.objects(obj, cls.resolve('rdf:type')))
         python_classes = tuple(cls.__metaclass__._classes[t] for t in types)
         if len(python_classes) == 0:
             return Resource(graph, obj)
@@ -272,6 +307,7 @@ class Resource(object):
                                                python_class in python_classes),
                     python_classes, {'_autocreate': True})
                 cls.__metaclass__._classes[types] = the_class
+                the_class.rdf_classes = frozenset(types)
             return cls.__metaclass__._classes[types](graph, obj)
 
 def retrieve_resource(graph, subject):

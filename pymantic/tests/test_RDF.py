@@ -176,3 +176,57 @@ class TestRDF(unittest.TestCase):
         self.assert_(isinstance(group, Group))
         self.assert_(isinstance(both, Organization))
         self.assert_(isinstance(both, Group))
+
+    def testStr(self):
+        """Test str-y serialization of Resources."""
+        graph = rdflib.ConjunctiveGraph()
+        test_subject1 = rdflib.URIRef('http://example.com/aorganization')
+        test_label = rdflib.Literal('Test Label', lang='en')
+        graph.add((test_subject1, pymantic.RDF.Resource.resolve('rdfs:label'),
+                   test_label))
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        self.assertEqual(r['rdfs:label'], test_label)
+        self.assertEqual(str(r), str(test_label))
+    
+    def testGetSetPredicate(self):
+        """Test getting and setting a multi-value predicate."""
+        graph = rdflib.ConjunctiveGraph()
+        test_subject1 = rdflib.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:example'] = set(('foo', 'bar'))
+        example_values = set(r['rdfs:example'])
+        self.assert_(rdflib.Literal('foo', lang='en') in example_values)
+        self.assert_(rdflib.Literal('bar', lang='en') in example_values)
+        self.assertEqual(len(example_values), 2)
+    
+    def testGetSetScalarPredicate(self):
+        """Test getting and setting a scalar predicate."""
+        graph = rdflib.ConjunctiveGraph()
+        test_subject1 = rdflib.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:label'] = 'foo'
+        value = r['rdfs:label']
+        self.assertEqual(value, rdflib.Literal('foo', lang='en'))
+    
+    def testGetSetPredicateLanguage(self):
+        """Test getting and setting a multi-value predicate with an explicit language."""
+        graph = rdflib.ConjunctiveGraph()
+        test_subject1 = rdflib.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:example', 'fr'] = set(('foo', 'bar'))
+        example_values = set(r['rdfs:example', 'fr'])
+        self.assert_(rdflib.Literal('foo', lang='fr') in example_values)
+        self.assert_(rdflib.Literal('bar', lang='fr') in example_values)
+        self.assertEqual(len(example_values), 2)
+    
+    def testGetSetScalarPredicateLanguage(self):
+        """Test getting and setting a scalar predicate with an explicit language."""
+        graph = rdflib.ConjunctiveGraph()
+        test_subject1 = rdflib.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:label'] = 'foo'
+        r['rdfs:label', 'fr'] = 'bar'
+        value = r['rdfs:label']
+        self.assertEqual(value, rdflib.Literal('foo', lang='en'))
+        value = r['rdfs:label', 'fr']
+        self.assertEqual(value, rdflib.Literal('bar', lang='fr'))
