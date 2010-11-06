@@ -109,14 +109,14 @@ class TestRDF(unittest.TestCase):
     def testResourceEquality(self):
         graph = rdflib.ConjunctiveGraph()
         otherGraph = rdflib.ConjunctiveGraph()
-        testResource = pymantic.RDF.Resource.for_uri(graph, 'foo')
-        self.assertEqual(testResource, pymantic.RDF.Resource.for_uri(
+        testResource = pymantic.RDF.Resource(graph, 'foo')
+        self.assertEqual(testResource, pymantic.RDF.Resource(
             graph, 'foo'))
         self.assertEqual(testResource, rdflib.URIRef('foo'))
         self.assertEqual(testResource, 'foo')
-        self.assertNotEqual(testResource, pymantic.RDF.Resource.for_uri(
+        self.assertNotEqual(testResource, pymantic.RDF.Resource(
             graph, 'bar'))
-        self.assertEqual(testResource, pymantic.RDF.Resource.for_uri(
+        self.assertEqual(testResource, pymantic.RDF.Resource(
             otherGraph, 'foo'))
         self.assertNotEqual(testResource, rdflib.URIRef('bar'))
         self.assertNotEqual(testResource, 'bar')

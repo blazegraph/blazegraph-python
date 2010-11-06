@@ -161,6 +161,8 @@ class Resource(object):
     
     def __init__(self, graph, subject):
         self.graph = graph
+        if not isinstance(subject, rdflib.URIRef):
+            subject = rdflib.URIRef(subject)
         self.subject = subject
         if not self.check_classification():
             retrieve_resource(graph, subject)
