@@ -209,6 +209,20 @@ class Resource(object):
     def __hash__(self):
         return hash(self.subject)
     
+    def interpret_key(self, key):
+        lang = None
+        datatype = None
+        if isinstance(key, tuple) and len(key) >= 2:
+            if is_language(key[1]):
+                lang = key[1]
+            else:
+                datatype = key[1]
+            key = key[0]
+        if lang is None and datatype is None:
+            lang = self.lang
+        predicate = self.resolve(key)
+        return predicate, lang, datatype
+    
     def safe_graph_add(self, predicate, obj, fallback_lang, fallback_datatype):
         """Ensures that we're adding appropriate objects to an RDF graph."""
         if not isinstance(obj, rdflib.Literal) and not isinstance(obj, rdflib.URIRef):
@@ -222,17 +236,7 @@ class Resource(object):
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style."""
-        lang = None
-        datatype = None
-        if isinstance(key, tuple) and len(key) >= 2:
-            if is_language(key[1]):
-                lang = key[1]
-            else:
-                datatype = key[1]
-            key = key[0]
-        if lang is None and datatype is None:
-            lang = self.lang
-        predicate = self.resolve(key)
+        predicate, lang, datatype = self.interpret_key(key)
         objects = self.objects_by(predicate, lang, datatype)
         if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
@@ -246,17 +250,7 @@ class Resource(object):
     
     def __setitem__(self, key, value):
         """Sets predicates for this subject by key dictionary-style."""
-        lang = None
-        datatype = None
-        if isinstance(key, tuple) and len(key) >= 2:
-            if is_language(key[1]):
-                lang = key[1]
-            else:
-                datatype = key[1]
-            key = key[0]
-        if lang is None and datatype is None:
-            lang = self.lang
-        predicate = self.resolve(key)
+        predicate, lang, datatype = self.interpret_key(key)
         objects = self.objects_by(predicate, lang, datatype)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
