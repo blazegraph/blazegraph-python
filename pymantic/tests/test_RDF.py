@@ -106,72 +106,6 @@ class TestRDF(unittest.TestCase):
                                           'allyourbase': rdflib.Namespace('arebelongtous!'),
                                           'bunny': rdflib.Namespace('pancake'),})
 
-    def testLanguageScalarProperties(self):
-        """Language filtering in ScalarProperties works"""
-        class Foo(pymantic.RDF.Resource):
-            namespaces = {'test': 'http://example.com/test',}
-            english_name = pymantic.RDF.ScalarPredicateProperty('test:name',language="en")
-        testns = rdflib.Namespace('http://example.com/test')
-        graph = rdflib.ConjunctiveGraph()
-        graph.add((rdflib.URIRef('foo'), testns['name'], rdflib.Literal("english",lang="en")))
-        graph.add((rdflib.URIRef('foo'), testns['name'], rdflib.Literal("german",lang="de")))
-        foo = Foo.for_uri(graph,'foo')
-        self.assertEquals(foo.english_name, pymantic.util.en("english"))
-        
-    def testClassification(self):
-        """Test the classification feature."""
-        graph = rdflib.ConjunctiveGraph()
-        rdfns = rdflib.Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#')
-        testns = rdflib.Namespace('test!')
-        graph.set((rdflib.URIRef('foo'), rdfns['type'], testns['lolcats']))
-        graph.set((rdflib.URIRef('foo'), testns['test'], "Brains."))
-        graph.set((rdflib.URIRef('bar'), rdfns['type'], testns['lolcats']))
-        graph.set((rdflib.URIRef('bar'), testns['test'], "Brains!"))
-        graph.set((rdflib.URIRef('baz'), rdfns['type'], testns['orlyowl']))
-        graph.set((rdflib.URIRef('baz'), testns['test'], "Brains!!!"))
-        class Test(pymantic.RDF.Resource):
-            namespaces = {'test': 'test!',}
-            classification_value = 'test:lolcats'
-            test = pymantic.RDF.ScalarPredicateProperty('test:test')
-        t_foo = Test.for_uri(graph, 'foo')
-        self.assertEqual(t_foo.test, 'Brains.')
-        t_bar = Test.for_uri(graph, 'bar')
-        self.assertEqual(t_bar.test, 'Brains!')
-        self.assert_(Test.for_uri(graph, 'baz') is None)
-        self.assertRaises(pymantic.RDF.ClassificationMismatchError,
-                          Test, graph, rdflib.URIRef('baz'))
-        l = list(Test.in_graph(graph))
-        self.assertEqual(len(l), 2)
-        self.assert_(t_foo in l)
-        self.assert_(t_bar in l)
-
-    def testClassificationPredicate(self):
-        """Test the classification feature with different predicates."""
-        graph = rdflib.ConjunctiveGraph()
-        testns = rdflib.Namespace('test!')
-        graph.set((rdflib.URIRef('foo'), testns['type'], testns['lolcats']))
-        graph.set((rdflib.URIRef('foo'), testns['test'], "Brains."))
-        graph.set((rdflib.URIRef('bar'), testns['type'], testns['lolcats']))
-        graph.set((rdflib.URIRef('bar'), testns['test'], "Brains!"))
-        graph.set((rdflib.URIRef('baz'), testns['type'], testns['orlyowl']))
-        graph.set((rdflib.URIRef('baz'), testns['test'], "Brains!!!"))
-        class Test(pymantic.RDF.Resource):
-            namespaces = {'test': 'test!',}
-            classification_predicate = 'test:type'
-            classification_value = 'test:lolcats'
-            test = pymantic.RDF.ScalarPredicateProperty('test:test')
-        t_foo = Test.for_uri(graph, 'foo')
-        self.assertEqual(t_foo.test, 'Brains.')
-        t_bar = Test.for_uri(graph, 'bar')
-        self.assertEqual(t_bar.test, 'Brains!')
-        self.assert_(Test.for_uri(graph, 'baz') is None)
-        self.assertRaises(pymantic.RDF.ClassificationMismatchError,
-                          Test, graph, rdflib.URIRef('baz'))
-        l = list(Test.in_graph(graph))
-        self.assertEqual(len(l), 2)
-        self.assert_(t_foo in l)
-        self.assert_(t_bar in l)
-    
     def testResourceEquality(self):
         graph = rdflib.ConjunctiveGraph()
         otherGraph = rdflib.ConjunctiveGraph()
@@ -187,21 +121,3 @@ class TestRDF(unittest.TestCase):
         self.assertNotEqual(testResource, rdflib.URIRef('bar'))
         self.assertNotEqual(testResource, 'bar')
         self.assertNotEqual(testResource, 42)
-    
-    def testAutomaticResourceRetreival(self):
-        class FakeProductType(pymantic.RDF.Resource):
-                namespaces = {'rdfs': 'http://www.w3.org/2000/01/rdf-schema#',
-                              'dcam': 'http://purl.org/dc/dcam/',}
-    
-                classification_predicate = 'dcam:memberOf'
-    
-                classification_value = 'http://purl.oreilly.com/product-types/'
-                
-                label = pymantic.RDF.ScalarPredicateProperty('rdfs:label')
-        
-        graph = rdflib.ConjunctiveGraph()
-        graph.retrieve_http = True
-        testResource = FakeProductType.for_uri(graph, 'http://purl.oreilly.com/product-types/BOOK')
-        self.assertEqual(testResource.label,
-                         rdflib.Literal('Print', lang='en-US'))
-        self.assert_(rdflib.URIRef('http://purl.oreilly.com/product-types/BOOK') in graph.retrieved_uris)
