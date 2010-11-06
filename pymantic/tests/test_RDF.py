@@ -230,3 +230,32 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(value, rdflib.Literal('foo', lang='en'))
         value = r['rdfs:label', 'fr']
         self.assertEqual(value, rdflib.Literal('bar', lang='fr'))
+    
+    def testResourcePredicate(self):
+        """Test instantiating a class when accessing a predicate."""
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        @pymantic.RDF.register_class('gr:PriceSpecification')
+        class PriceSpecification(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        test_subject1 = rdflib.URIRef('http://example.com/offering')
+        test_subject2 = rdflib.URIRef('http://example.com/price')
+        graph = rdflib.ConjunctiveGraph()
+        graph.add((test_subject1, Offering.resolve('rdf:type'),
+                   Offering.resolve('gr:Offering')))
+        graph.add((test_subject1, Offering.resolve('gr:hasPriceSpecification'),
+                   test_subject2))
+        graph.add((test_subject2, PriceSpecification.resolve('rdf:type'),
+                   PriceSpecification.resolve('gr:PriceSpecification')))
+        offering = Offering(graph, test_subject1)
+        price_specification = PriceSpecification(graph, test_subject2)
+        prices = set(offering['gr:hasPriceSpecification'])
+        self.assertEqual(len(prices), 1)
+        self.assert_(price_specification in prices)
