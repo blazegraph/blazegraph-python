@@ -188,8 +188,8 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(r['rdfs:label'], test_label)
         self.assertEqual(str(r), str(test_label))
     
-    def testGetSetPredicate(self):
-        """Test getting and setting a multi-value predicate."""
+    def testGetSetDelPredicate(self):
+        """Test getting, setting, and deleting a multi-value predicate."""
         graph = rdflib.ConjunctiveGraph()
         test_subject1 = rdflib.URIRef('http://example.com/')
         r = pymantic.RDF.Resource(graph, test_subject1)
@@ -198,38 +198,60 @@ class TestRDF(unittest.TestCase):
         self.assert_(rdflib.Literal('foo', lang='en') in example_values)
         self.assert_(rdflib.Literal('bar', lang='en') in example_values)
         self.assertEqual(len(example_values), 2)
+        del r['rdfs:example']
+        example_values = set(r['rdfs:example'])
+        self.assertEqual(len(example_values), 0)
     
-    def testGetSetScalarPredicate(self):
-        """Test getting and setting a scalar predicate."""
+    def testGetSetDelScalarPredicate(self):
+        """Test getting, setting, and deleting a scalar predicate."""
         graph = rdflib.ConjunctiveGraph()
         test_subject1 = rdflib.URIRef('http://example.com/')
         r = pymantic.RDF.Resource(graph, test_subject1)
         r['rdfs:label'] = 'foo'
-        value = r['rdfs:label']
-        self.assertEqual(value, rdflib.Literal('foo', lang='en'))
+        self.assertEqual(r['rdfs:label'], rdflib.Literal('foo', lang='en'))
+        del r['rdfs:label']
+        self.assertEqual(r['rdfs:label'], None)
     
-    def testGetSetPredicateLanguage(self):
-        """Test getting and setting a multi-value predicate with an explicit language."""
+    def testGetSetDelPredicateLanguage(self):
+        """Test getting, setting and deleting a multi-value predicate with an explicit language."""
         graph = rdflib.ConjunctiveGraph()
         test_subject1 = rdflib.URIRef('http://example.com/')
         r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:example', 'en'] = set(('baz',))
         r['rdfs:example', 'fr'] = set(('foo', 'bar'))
         example_values = set(r['rdfs:example', 'fr'])
         self.assert_(rdflib.Literal('foo', lang='fr') in example_values)
         self.assert_(rdflib.Literal('bar', lang='fr') in example_values)
+        self.assert_(rdflib.Literal('baz', lang='en') not in example_values)
         self.assertEqual(len(example_values), 2)
+        example_values = set(r['rdfs:example', 'en'])
+        self.assert_(rdflib.Literal('foo', lang='fr') not in example_values)
+        self.assert_(rdflib.Literal('bar', lang='fr') not in example_values)
+        self.assert_(rdflib.Literal('baz', lang='en') in example_values)
+        self.assertEqual(len(example_values), 1)
+        del r['rdfs:example', 'fr']
+        example_values = set(r['rdfs:example', 'fr'])
+        self.assertEqual(len(example_values), 0)
+        example_values = set(r['rdfs:example', 'en'])
+        self.assert_(rdflib.Literal('foo', lang='fr') not in example_values)
+        self.assert_(rdflib.Literal('bar', lang='fr') not in example_values)
+        self.assert_(rdflib.Literal('baz', lang='en') in example_values)
+        self.assertEqual(len(example_values), 1)
     
-    def testGetSetScalarPredicateLanguage(self):
-        """Test getting and setting a scalar predicate with an explicit language."""
+    def testGetSetDelScalarPredicateLanguage(self):
+        """Test getting, setting, and deleting a scalar predicate with an explicit language."""
         graph = rdflib.ConjunctiveGraph()
         test_subject1 = rdflib.URIRef('http://example.com/')
         r = pymantic.RDF.Resource(graph, test_subject1)
         r['rdfs:label'] = 'foo'
         r['rdfs:label', 'fr'] = 'bar'
-        value = r['rdfs:label']
-        self.assertEqual(value, rdflib.Literal('foo', lang='en'))
-        value = r['rdfs:label', 'fr']
-        self.assertEqual(value, rdflib.Literal('bar', lang='fr'))
+        self.assertEqual(r['rdfs:label'], rdflib.Literal('foo', lang='en'))
+        self.assertEqual(r['rdfs:label', 'en'], rdflib.Literal('foo', lang='en'))
+        self.assertEqual(r['rdfs:label', 'fr'], rdflib.Literal('bar', lang='fr'))
+        del r['rdfs:label']
+        self.assertEqual(r['rdfs:label'], None)
+        self.assertEqual(r['rdfs:label', 'en'], None)
+        self.assertEqual(r['rdfs:label', 'fr'], rdflib.Literal('bar', lang='fr'))        
     
     def testResourcePredicate(self):
         """Test instantiating a class when accessing a predicate."""
@@ -259,3 +281,33 @@ class TestRDF(unittest.TestCase):
         prices = set(offering['gr:hasPriceSpecification'])
         self.assertEqual(len(prices), 1)
         self.assert_(price_specification in prices)
+    
+    def testResourcePredicateAssignment(self):
+        """Test assigning an instance of a resource to a predicate."""
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        @pymantic.RDF.register_class('gr:PriceSpecification')
+        class PriceSpecification(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        test_subject1 = rdflib.URIRef('http://example.com/offering')
+        test_subject2 = rdflib.URIRef('http://example.com/price')
+        graph = rdflib.ConjunctiveGraph()
+        graph.add((test_subject1, Offering.resolve('rdf:type'),
+                   Offering.resolve('gr:Offering')))
+        graph.add((test_subject2, PriceSpecification.resolve('rdf:type'),
+                   PriceSpecification.resolve('gr:PriceSpecification')))
+        offering = Offering(graph, test_subject1)
+        price_specification = PriceSpecification(graph, test_subject2)
+        before_prices = set(offering['gr:hasPriceSpecification'])
+        self.assertEqual(len(before_prices), 0)
+        offering['gr:hasPriceSpecification'] = price_specification
+        after_prices = set(offering['gr:hasPriceSpecification'])
+        self.assertEqual(len(after_prices), 1)
+        self.assert_(price_specification in after_prices)

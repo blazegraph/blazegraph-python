@@ -218,13 +218,15 @@ class Resource(object):
             else:
                 datatype = key[1]
             key = key[0]
-        if lang is None and datatype is None:
+        else:
             lang = self.lang
         predicate = self.resolve(key)
         return predicate, lang, datatype
     
     def safe_graph_add(self, predicate, obj, fallback_lang, fallback_datatype):
         """Ensures that we're adding appropriate objects to an RDF graph."""
+        if isinstance(obj, Resource):
+            obj = obj.subject
         if not isinstance(obj, rdflib.Literal) and not isinstance(obj, rdflib.URIRef):
             obj = rdflib.Literal(obj, lang=fallback_lang, datatype=fallback_datatype)
         self.graph.add((self.subject, predicate, obj))
@@ -263,9 +265,16 @@ class Resource(object):
                 for v in value:
                     self.safe_graph_add(predicate, v, lang, datatype)
             else:
-                self.safe_graph_add(predicate, v, lang, datatype)
+                self.safe_graph_add(predicate, value, lang, datatype)
     
     # Delete item
+    
+    def __delitem__(self, key):
+        """Deletes predicates for this subject by key dictionary-style."""
+        predicate, lang, datatype = self.interpret_key(key)
+        objects = self.objects_by(predicate, lang, datatype)
+        for obj in objects:
+            self.graph.remove((self.subject, predicate, obj))
     
     # Membership test
     
@@ -282,6 +291,8 @@ class Resource(object):
     
     @classmethod
     def classify(cls, graph, obj):
+        if obj is None:
+            return None
         if isinstance(obj, rdflib.Literal):
             return obj
         if (obj, cls.resolve('rdf:type'), None) not in graph:
