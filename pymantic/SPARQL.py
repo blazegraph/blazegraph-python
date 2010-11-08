@@ -68,7 +68,7 @@ class UpdateableGraphStore(SPARQLServer):
         self.dataset_url = dataset_url
     
     def request_url(self, graph_uri):
-        return urllib.urlencode({'graph', graph_uri})
+        return urllib.urlencode({'graph': graph_uri})
     
     def get(self, graph_uri):
         h = httplib2.Http()

@@ -9,7 +9,7 @@ from cStringIO import StringIO
 from string import Template
 
 import rdflib
-from rdflib.URIRef import URIRef as Original_URIRef
+from rdflib.term import URIRef as Original_URIRef
 import httplib2
 
 import pymantic.uri_schemes as uri_schemes
@@ -25,7 +25,7 @@ class SaneURIRef(Original_URIRef):
             return unicode(self) == unicode(other)
         return NotImplemented
 
-rdflib.URIRef = SaneURIRef # Monkey patch!
+#rdflib.term.URIRef = SaneURIRef # Monkey patch!
 
 def is_language(lang):
     """Is something a valid XML language?"""
@@ -57,7 +57,7 @@ def parse_curie(curie, namespaces):
     prefix, sep, reference = curie.partition(':')
     if not definitely_curie:
         if prefix in uri_schemes.schemes:
-            return rdflib.URIRef(curie)
+            return rdflib.term.URIRef(curie)
     if not reference and '' in namespaces:
         reference = prefix
         return namespaces[''][reference]
@@ -302,7 +302,7 @@ class Resource(object):
     def classify(cls, graph, obj):
         if obj is None:
             return None
-        if isinstance(obj, rdflib.Literal):
+        if isinstance(obj, rdflib.term.Literal):
             return obj
         if (obj, cls.resolve('rdf:type'), None) not in graph:
             retrieve_resource(graph, obj)
@@ -326,7 +326,7 @@ class Resource(object):
 
 def retrieve_resource(graph, subject):
     """Attempt to retrieve an RDF resource VIA HTTP."""
-    parsed_subject = urlparse.urlparse(self.subject)
+    parsed_subject = urlparse.urlparse(subject)
     publicID=urlparse.urlunparse((parsed_subject.scheme,
                                   parsed_subject.netloc,
                                   parsed_subject.path,
