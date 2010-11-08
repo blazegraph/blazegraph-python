@@ -172,7 +172,9 @@ class Resource(object):
     scalars = ['rdfs:label',]
     
     lang = 'en'
-        
+    
+    rdf_classes = frozenset()
+    
     def __init__(self, graph, subject):
         self.graph = graph
         if not isinstance(subject, rdflib.URIRef):
@@ -182,6 +184,13 @@ class Resource(object):
             retrieve_resource(graph, subject)
             if not self.check_classification():
                 raise ClassificationMismatchError()
+    
+    @classmethod
+    def new(cls, graph, subject):
+        """Create a new instance of this Resource."""
+        for rdf_class in cls.rdf_classes:
+            graph.add((subject, cls.resolve('rdf:type'), rdf_class))
+        return cls(graph, subject)
     
     def check_classification(self):
         if hasattr(self, 'rdf_classes'):
