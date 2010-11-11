@@ -326,3 +326,26 @@ class TestRDF(unittest.TestCase):
         
         test_subject = rdflib.term.URIRef('http://example.com/')
         p = Person.new(graph, test_subject)
+        
+    def testGetAllResourcesInGraph(self):
+        """Test iterating over all of the resources in a graph with a
+        particular RDF type."""
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        graph = rdflib.ConjunctiveGraph()
+        test_subject_base = rdflib.term.URIRef('http://example.com/')
+        for i in range(10):
+            graph.add((rdflib.term.URIRef(test_subject_base + str(i)),
+                       Offering.resolve('rdf:type'),
+                       Offering.resolve('gr:Offering')))
+        offerings = Offering.in_graph(graph)
+        self.assertEqual(len(offerings), 10)
+        for i in range(10):
+            this_subject = rdflib.term.URIRef(test_subject_base + str(i))
+            offering = Offering(graph, this_subject)
+            self.assert_(offering in offerings)

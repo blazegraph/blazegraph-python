@@ -287,7 +287,16 @@ class Resource(object):
     
     # Membership test
     
-    # Iteration
+    @classmethod
+    def in_graph(cls, graph):
+        subjects = set()
+        for rdf_class in cls.rdf_classes:
+            if not subjects:
+                subjects.update(graph.subjects(cls.resolve('rdf:type'), rdf_class))
+            else:
+                subjects.intersection_update(
+                    graph.subjects(cls.resolve('rdf:type'), rdf_class))
+        return set(cls(graph, subject) for subject in subjects)
     
     def __repr__(self):
         return "<%r: %s>" % (type(self), self.subject)
