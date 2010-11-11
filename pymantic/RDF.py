@@ -289,6 +289,7 @@ class Resource(object):
     
     @classmethod
     def in_graph(cls, graph):
+        """Iterate through all instances of this Resource in the graph."""
         subjects = set()
         for rdf_class in cls.rdf_classes:
             if not subjects:
