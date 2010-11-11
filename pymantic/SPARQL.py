@@ -85,6 +85,7 @@ class UpdateableGraphStore(SPARQLServer):
             graph.parse(StringIO(content), publicID=graph_uri, format='n3')
         elif resp['content-type'].startswith('text/plain'):
             graph.parse(StringIO(content), publiCID=graph_uri, format='nt')
+        return graph
     
     def delete(self, graph_uri):
         h = httplib2.Http()
