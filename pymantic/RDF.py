@@ -107,7 +107,7 @@ class MetaResource(type):
                 scalars.update(base.scalars)
         if 'namespaces' in dct:
             for namespace in dct['namespaces']:
-                namespaces[namespace] = rdflib.Namespace(
+                namespaces[namespace] = rdflib.namespace.Namespace(
                     dct['namespaces'][namespace])
         dct['namespaces'] = namespaces
         if 'scalars' in dct:
@@ -177,8 +177,8 @@ class Resource(object):
     
     def __init__(self, graph, subject):
         self.graph = graph
-        if not isinstance(subject, rdflib.URIRef):
-            subject = rdflib.URIRef(subject)
+        if not isinstance(subject, rdflib.term.Node):
+            subject = rdflib.term.URIRef(subject)
         self.subject = subject
         if not self.check_classification():
             retrieve_resource(graph, subject)
