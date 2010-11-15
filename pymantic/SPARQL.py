@@ -24,8 +24,15 @@ class UnknownSPARQLReturnTypeException(Exception):
 class SPARQLServer(object):
     """A server that can run SPARQL queries."""
     
-    def __init__(self, query_url):
+    def __init__(self, query_url, post_queries = True):
         self.query_url = query_url
+        self.post_queries = post_queries
+    
+    acceptable_sparql_responses = [
+        'application/sparql-results+json',
+        'application/rdf+xml',
+        'application/sparql-results+xml',
+    ]
         
     def query(self, sparql, output='json'):
         """Executes a SPARQL query. The return type varies based on what the
@@ -40,11 +47,20 @@ class SPARQLServer(object):
         http = httplib2.Http()
         
         log.debug("Querying: %s with: %r", self.query_url, sparql)
-        response, content = http.request(
-            uri=self.query_url, method='POST',
-            body=urllib.urlencode({'query': sparql, 'output':output }), 
-            headers={
-                "Content-Type": "application/x-www-form-urlencoded",
+        if self.post_queries:
+            response, content = http.request(
+                uri=self.query_url, method='POST',
+                body=urllib.urlencode({'query': sparql, 'output':output }), 
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Accept": ','.join(self.acceptable_sparql_responses),
+                })
+        else:
+            params = urllib.urlencode({'query': sparql, 'output':output })
+            response, content = http.request(
+                uri=self.query_url + '?' + params, method='GET',
+                headers={
+                    "Accept": ','.join(self.acceptable_sparql_responses),
             })
         if response['status'] != '200':
             raise SPARQLQueryException('%s: %s' % (response, content))
@@ -64,10 +80,17 @@ class UpdateableGraphStore(SPARQLServer):
     """SPARQL server class that is capable of interacting with SPARQL 1.1
     graph stores."""
     
-    def __init__(self, query_url, dataset_url, param_style = True):
-        super(UpdateableGraphStore, self).__init__(query_url)
+    def __init__(self, query_url, dataset_url, param_style = True, **kwargs):
+        super(UpdateableGraphStore, self).__init__(query_url, **kwargs)
         self.dataset_url = dataset_url
         self.param_style = param_style
+    
+    acceptable_graph_responses = [
+        'text/plain',
+        'application/rdf+xml',
+        'text/turtle',
+        'text/rdf+n3',
+    ]
     
     def request_url(self, graph_uri):
         if self.param_style:
@@ -79,7 +102,7 @@ class UpdateableGraphStore(SPARQLServer):
         h = httplib2.Http()
         resp, content = h.request(
             uri = self.request_url(graph_uri), method = 'GET',
-            headers = {'Accept': 'text/plain,application/rdf+xml,text/turtle,text/rdf+n3',},)
+            headers = {'Accept': ','.join(self.acceptable_graph_responses),},)
         if resp['status'] != '200':
             raise Exception('Error from Graph Store (%s): %s' %\
                             (resp['status'], content))
