@@ -100,11 +100,16 @@ class MetaResource(type):
     def __new__(cls, name, bases, dct):
         namespaces = {}
         scalars = set()
+        sub_properties = {}
         for base in bases:
             if hasattr(base, 'namespaces'):
                 namespaces.update(base.namespaces)
             if hasattr(base, 'scalars'):
                 scalars.update(base.scalars)
+            if hasattr(base, 'sub_properties'):
+                for prop, parents in base.sub_properties.iteritems():
+                    sub_properties[prop] = sub_properties.get(
+                        prop, frozenset()) | parents
         if 'namespaces' in dct:
             for namespace in dct['namespaces']:
                 namespaces[namespace] = rdflib.namespace.Namespace(
@@ -114,6 +119,13 @@ class MetaResource(type):
             for scalar in dct['scalars']:
                 scalars.add(parse_curie(scalar, namespaces))
         dct['scalars'] = scalars
+        if 'sub_properties' in dct:
+            for prop, parents in dct['sub_properties'].iteritems():
+                prop = parse_curie(prop, namespaces)
+                parents = frozenset(parse_curie(parent, namespaces) for parent\
+                                    in parents)
+                sub_properties[prop] = sub_properties.get(
+                    prop, frozenset()) | parents
         return type.__new__(cls, name, bases, dct)
 
 def register_class(rdf_type):
@@ -172,6 +184,8 @@ class Resource(object):
                   'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'}
     
     scalars = ['rdfs:label',]
+    
+    sub_properties = {}
     
     lang = 'en'
     
