@@ -18,7 +18,7 @@ Requirements
 ============
 
 Pymantic requires Python 2.5 or higher. rdflib is currently used to provide RDF
-primitives, only rdflib 2.4.x versions are supported. httplib2 is used for HTTP 
+primitives, only rdflib 3.x versions are supported. httplib2 is used for HTTP 
 requests and the SPARQL client. lxml is required by the SPARQL client as well.
 
 
