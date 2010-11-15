@@ -131,6 +131,8 @@ class URLRetrievalError(Exception):
 
 class Resource(object):
     """
+    THIS IS A LIE. Fresh documentation coming soon.
+    
     Represents a resource in the RDF graph.
     
     To inherit from this class, directly or indirectly, do the following:
