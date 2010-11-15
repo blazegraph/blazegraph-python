@@ -32,6 +32,9 @@ def is_language(lang):
     return True
 
 def lang_match(lang1, lang2):
+    """Determines if two languages are, in fact, the same language.
+    
+    Eg: en is the same as en-us and en-uk."""
     if lang1 is None or lang2 is None:
         return True
     return lang1 == lang2
@@ -89,27 +92,18 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
 #  MetaResource should perform all the necessary bindings?
 
 class MetaResource(type):
-    """Aggregates namespace information.
-    
-    MetaResource makes namespaces a special attribute. namespaces is a
-    dictionary that is the 'union' of all namespaces attributes on a
-    class and its parents."""
+    """Aggregates namespace and scalar information."""
     
     _classes = {} # Map of RDF classes to Python classes.
     
     def __new__(cls, name, bases, dct):
         namespaces = {}
         scalars = set()
-        sub_properties = {}
         for base in bases:
             if hasattr(base, 'namespaces'):
                 namespaces.update(base.namespaces)
             if hasattr(base, 'scalars'):
                 scalars.update(base.scalars)
-            if hasattr(base, 'sub_properties'):
-                for prop, parents in base.sub_properties.iteritems():
-                    sub_properties[prop] = sub_properties.get(
-                        prop, frozenset()) | parents
         if 'namespaces' in dct:
             for namespace in dct['namespaces']:
                 namespaces[namespace] = rdflib.namespace.Namespace(
@@ -118,17 +112,11 @@ class MetaResource(type):
         if 'scalars' in dct:
             for scalar in dct['scalars']:
                 scalars.add(parse_curie(scalar, namespaces))
-        dct['scalars'] = scalars
-        if 'sub_properties' in dct:
-            for prop, parents in dct['sub_properties'].iteritems():
-                prop = parse_curie(prop, namespaces)
-                parents = frozenset(parse_curie(parent, namespaces) for parent\
-                                    in parents)
-                sub_properties[prop] = sub_properties.get(
-                    prop, frozenset()) | parents
+        dct['scalars'] = frozenset(scalars)
         return type.__new__(cls, name, bases, dct)
 
 def register_class(rdf_type):
+    """Register a class for automatic instantiation VIA Resource.classify."""
     def _register_class(python_class):
         rdf_class = python_class.resolve(rdf_type)
         MetaResource._classes[python_class.resolve(rdf_type)] = python_class
@@ -142,51 +130,51 @@ class URLRetrievalError(Exception):
     pass
 
 class Resource(object):
-    """
-    THIS IS A LIE. Fresh documentation coming soon.
+    """Provides necessary context and utility methods for accessing a Resource
+    in an RDF graph. Resources can be used as-is, but are likely somewhat
+    unwieldy, since all predicate access must be by complete URL and produces
+    sets. By subclassing Resource, you can take advantage of a number of
+    quality-of-life features:
     
-    Represents a resource in the RDF graph.
+    1) Bind namespaces to prefixes, and refer to them using CURIEs when
+       accessing predicates or explicitly resolving CURIEs. Store a dictionary
+       mapping prefixes to URLs in the 'namespaces' attribute of your subclass.
+       The namespaces dictionaries on all parents are merged with this
+       dictionary, and those at the bottom are prioritized. The values in the
+       dictionaries will automatically be turned into rdflib Namespace objects.
     
-    To inherit from this class, directly or indirectly, do the following:
-    
-    1) Define any namespaces needed to resolve any predicates or other CURIEs.
-       These should go in an attribute called 'namespaces', which should contain a
-       dictionary mapping prefixes to URLs. The namespaces dictionaries on all
-       parents are merged together, with those at the bottom prioritized. The
-       values in the dictionaries will automatically be turned into
-       rdflib.Namespace objects.
-    2) Resource supports automatic "classification", which can be used to ensure
-       that Resources match certain criteria. Resource itself supports
-       classification by predicate - set the classification_predicate attribute to
-       the predicate to check (it defaults to rdf:type) and the
-       classification_value attribute to the expected value. If
-       classification_value is set, attempting to instantiate that Resource class
-       for any subject without that value for the classification_predicate will
-       result in an exception. Both classification_value and classification_predicate
-       are parsed as CURIEs. Setting these also allows for all instances of the
-       Resource in a graph to be enumerated through the in_graph method.
-    3) Resource supports automatic retrieval of RDF descriptions for resources
-       described by HTTP URLs. To enable this, set the retrieve_http attribute on
-       the graph object to True. When instantiation of a Resource object for one
-       of these resources fails due to classification constraints, rdfsandvich will
-       attempt to resolve the failure by retrieving the contents of the HTTP URL
-       and parsing them as RDF. To limit the URLs that will be queried, set the
-       "retrieve_http_whitelist" or "retrieve_http_blacklist" attributes to a list
-       of regular expressions. The whitelist receives priority.
-    
-    If you need some other method of classification, override the
-    check_classification and in_graph methods.
-    """
+    2) Define predicates as scalars. This asserts that a given predicate on this
+       resource will only have zero or one value for a given language or
+       data-type, or one reference to another resource. This is done using the
+       'scalars' set, which is processed and merged just like namespaces.
+        
+    3) Automatically classify certain RDF types as certain Resource subclasses.
+       Decorate your class with the pymantic.RDF.register_class decorator, and
+       provide it with the corresponding RDF type. Whenever this type is
+       encountered when retrieving objects from a predicate it will
+       automatically be instantiated as your class rather than a generic Resource.
+       
+       RDF allows for resources to have multiple types. When a resource is
+       encountered with two or more types that have different python classes
+       registered for them, a new python class is created. This new class
+       subclasses all applicable registered classes.
+       
+       If you want to perform this classification manually (to, for example,
+       instantiate the correct class for an arbitrary URI), you can do so by
+       calling Resource.classify. You can also create a new instance of a
+       Resource by calling .new on a subclass.
+       
+    Automatic retrieval of resources with no type information is currently
+    implemented here, but is likely to be refactored into a separate persistence
+    layer in the near future."""
     
     __metaclass__ = MetaResource
     
     namespaces = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
                   'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'}
     
-    scalars = ['rdfs:label',]
-    
-    sub_properties = {}
-    
+    scalars = frozenset(('rdfs:label',))
+        
     lang = 'en'
     
     rdf_classes = frozenset()
@@ -204,6 +192,8 @@ class Resource(object):
     @classmethod
     def new(cls, graph, subject):
         """Create a new instance of this Resource."""
+        if not isinstance(subject, rdflib.term.Node):
+            subject = rdflib.URIRef(subject)
         for rdf_class in cls.rdf_classes:
             graph.add((subject, cls.resolve('rdf:type'), rdf_class))
         return cls(graph, subject)
@@ -217,7 +207,7 @@ class Resource(object):
         
     @classmethod
     def resolve(cls, key):
-        """Use the classes namespaces to resolve a curie"""
+        """Use this class's namespaces to resolve a curie"""
         return parse_curie(key, cls.namespaces)
     
     def __eq__(self, other):
@@ -235,6 +225,8 @@ class Resource(object):
         return hash(self.subject)
     
     def interpret_key(self, key):
+        """Break up a key into a predicate name and optional language or
+        datatype specifier."""
         lang = None
         datatype = None
         if isinstance(key, tuple) and len(key) >= 2:
@@ -257,12 +249,23 @@ class Resource(object):
         self.graph.add((self.subject, predicate, obj))
 
     def objects_by(self, predicate, lang, datatype):
+        """Objects for a predicate that match a specified langugae or datatype."""
         return [obj for obj in self.graph.objects(self.subject, predicate) if\
                 (hasattr(obj, 'language') and lang_match(lang, obj.language)) or
                 not hasattr(obj, 'language')]
     
     def __getitem__(self, key):
-        """Fetch predicates off this subject by key dictionary-style."""
+        """Fetch predicates off this subject by key dictionary-style.
+        
+        This is the primary mechanism for predicate access. You can either
+        provide a predicate name, as a complete URL or CURIE:
+        
+        resource['rdfs:label']
+        resource['http://www.w3.org/2000/01/rdf-schema#label']
+        
+        Or a predicate name and a datatype or language:
+        
+        resource['rdfs:label', 'en']"""
         predicate, lang, datatype = self.interpret_key(key)
         objects = self.objects_by(predicate, lang, datatype)
         if predicate in self.scalars:
@@ -326,6 +329,10 @@ class Resource(object):
     
     @classmethod
     def classify(cls, graph, obj):
+        """Classify an object into an appropriate registered class, or Resource.
+        
+        May create a new class if necessary that is a subclass of two or more
+        registered Resource classes."""
         if obj is None:
             return None
         if isinstance(obj, rdflib.term.Literal):
