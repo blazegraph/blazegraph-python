@@ -72,19 +72,21 @@ class UpdateableGraphStore(SPARQLServer):
     
     def get(self, graph_uri):
         h = httplib2.Http()
-        resp, content = h.request(uri = self.request_url(graph_uri), method = 'GET')
+        resp, content = h.request(
+            uri = self.request_url(graph_uri), method = 'GET',
+            headers = {'Accept': 'text/plain,application/rdf+xml,text/turtle,text/rdf+n3',},)
         if resp['status'] != '200':
             raise Exception('Error from Graph Store (%s): %s' %\
                             (resp['status'], content))
         graph = rdflib.ConjunctiveGraph()
-        if resp['content-type'].startswith('application/rdf+xml'):
+        if resp['content-type'].startswith('text/plain'):
+            graph.parse(StringIO(content), publiCID=graph_uri, format='nt')
+        elif resp['content-type'].startswith('application/rdf+xml'):
             graph.parse(StringIO(content), publicID=graph_uri, format='xml')
         elif resp['content-type'].startswith('text/turtle'):
             graph.parse(StringIO(content), publicID=graph_uri, format='turtle')
         elif resp['content-type'].startswith('text/rdf+n3'):
             graph.parse(StringIO(content), publicID=graph_uri, format='n3')
-        elif resp['content-type'].startswith('text/plain'):
-            graph.parse(StringIO(content), publiCID=graph_uri, format='nt')
         return graph
     
     def delete(self, graph_uri):
