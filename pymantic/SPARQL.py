@@ -1,6 +1,7 @@
 """Provide an interface to SPARQL query endpoints."""
 
 import urllib
+import urlparse
 from cStringIO import StringIO
 
 import simplejson
@@ -63,12 +64,16 @@ class UpdateableGraphStore(SPARQLServer):
     """SPARQL server class that is capable of interacting with SPARQL 1.1
     graph stores."""
     
-    def __init__(self, query_url, dataset_url):
-        super(UpdateableRDFStore, self).__init__(query_url)
+    def __init__(self, query_url, dataset_url, param_style = True):
+        super(UpdateableGraphStore, self).__init__(query_url)
         self.dataset_url = dataset_url
+        self.param_style = param_style
     
     def request_url(self, graph_uri):
-        return urllib.urlencode({'graph': graph_uri})
+        if self.param_style:
+            return self.dataset_url + '?' + urllib.urlencode({'graph': graph_uri})
+        else:
+            return urlparse.urljoin(self.dataset_url, urllib.quote_plus(graph_uri))
     
     def get(self, graph_uri):
         h = httplib2.Http()
@@ -80,7 +85,7 @@ class UpdateableGraphStore(SPARQLServer):
                             (resp['status'], content))
         graph = rdflib.ConjunctiveGraph()
         if resp['content-type'].startswith('text/plain'):
-            graph.parse(StringIO(content), publiCID=graph_uri, format='nt')
+            graph.parse(StringIO(content), publicID=graph_uri, format='nt')
         elif resp['content-type'].startswith('application/rdf+xml'):
             graph.parse(StringIO(content), publicID=graph_uri, format='xml')
         elif resp['content-type'].startswith('text/turtle'):
@@ -125,10 +130,9 @@ class UpdateableGraphStore(SPARQLServer):
                 raise Exception('Error from Graph Store (%s): %s' %\
                                 (resp['status'], content))
 
-class PatchableGraphStore(SPARQLServer):
+class PatchableGraphStore(UpdateableGraphStore):
     """A graph store that supports the optional PATCH method of updating
     RDF graphs."""
     
     def patch(self, graph_uri, changeset):
         h = httplib2.Http()
-        
