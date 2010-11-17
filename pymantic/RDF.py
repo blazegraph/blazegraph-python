@@ -29,6 +29,8 @@ class SaneURIRef(Original_URIRef):
 
 def is_language(lang):
     """Is something a valid XML language?"""
+    if isinstance(lang, rdflib.URIRef):
+        return False
     return True
 
 def lang_match(lang1, lang2):
@@ -229,8 +231,11 @@ class Resource(object):
         datatype specifier."""
         lang = None
         datatype = None
+        rdf_class = None
         if isinstance(key, tuple) and len(key) >= 2:
-            if is_language(key[1]):
+            if isinstance(key[1], Resource):
+                rdf_class = key[1]
+            elif is_language(key[1]):
                 lang = key[1]
             else:
                 datatype = key[1]
@@ -238,7 +243,7 @@ class Resource(object):
         else:
             lang = self.lang
         predicate = self.resolve(key)
-        return predicate, lang, datatype
+        return predicate, lang, datatype, rdf_class
     
     def safe_graph_add(self, predicate, obj, fallback_lang, fallback_datatype):
         """Ensures that we're adding appropriate objects to an RDF graph."""
@@ -248,11 +253,23 @@ class Resource(object):
             obj = rdflib.Literal(obj, lang=fallback_lang, datatype=fallback_datatype)
         self.graph.add((self.subject, predicate, obj))
 
-    def objects_by(self, predicate, lang, datatype):
+    def objects_by(self, predicate, lang=None, datatype=None, rdf_class=None):
         """Objects for a predicate that match a specified langugae or datatype."""
-        return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                (hasattr(obj, 'language') and lang_match(lang, obj.language)) or
-                not hasattr(obj, 'language')]
+        if lang is not None:
+            return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                    (hasattr(obj, 'language') and lang_match(lang, obj.language)) or
+                    not hasattr(obj, 'language')]
+        elif datatype is not None:
+            return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                    (hasattr(obj, 'datatype') and obj.datatype == datatype) or
+                    not hasattr(obj, 'datatype')]
+        elif rdf_class is not None:
+            selected_objects = []
+            for obj in self.graph.objects(self.subject, predicate):
+                if isinstance(obj, rdflib.term.Node):
+                    if isinstance(self.classify(self.graph, obj), rdf_class):
+                        selected_objects.append(obj)
+            return selected_objects
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
@@ -266,8 +283,8 @@ class Resource(object):
         Or a predicate name and a datatype or language:
         
         resource['rdfs:label', 'en']"""
-        predicate, lang, datatype = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype)
+        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        objects = self.objects_by(predicate, lang, datatype, rdf_class)
         if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
         else:
@@ -280,8 +297,8 @@ class Resource(object):
     
     def __setitem__(self, key, value):
         """Sets predicates for this subject by key dictionary-style."""
-        predicate, lang, datatype = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype)
+        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        objects = self.objects_by(predicate, lang, datatype, rdf_class)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
         
@@ -299,8 +316,8 @@ class Resource(object):
     
     def __delitem__(self, key):
         """Deletes predicates for this subject by key dictionary-style."""
-        predicate, lang, datatype = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype)
+        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        objects = self.objects_by(predicate, lang, datatype, rdf_class)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
     

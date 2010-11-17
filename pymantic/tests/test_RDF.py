@@ -1,3 +1,4 @@
+import datetime
 import unittest
 
 import rdflib.graph
@@ -6,6 +7,8 @@ import rdflib.namespace
 
 import pymantic.RDF
 import pymantic.util
+
+from rdflib.namespace import XSD
 
 class TestRDF(unittest.TestCase):
     def tearDown(self):
@@ -254,6 +257,56 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(r['rdfs:label'], None)
         self.assertEqual(r['rdfs:label', 'en'], None)
         self.assertEqual(r['rdfs:label', 'fr'], rdflib.term.Literal('bar', lang='fr'))        
+    
+    def testGetSetDelPredicateDatatype(self):
+        """Test getting, setting and deleting a multi-value predicate with an explicit datatype."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        now = datetime.datetime.now()
+        then = datetime.datetime.now() - datetime.timedelta(days=1)
+        number = 42
+        r['rdfs:example', XSD['integer']] = set((number,))
+        r['rdfs:example', XSD['dateTime']] = set((now, then,))
+        example_values = set(r['rdfs:example', XSD['dateTime']])
+        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) in example_values)
+        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) in example_values)
+        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) not in example_values)
+        self.assertEqual(len(example_values), 2)
+        example_values = set(r['rdfs:example', XSD['integer']])
+        print example_values
+        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) not in example_values)
+        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) not in example_values)
+        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) in example_values)
+        self.assertEqual(len(example_values), 1)
+        del r['rdfs:example', XSD['dateTime']]
+        example_values = set(r['rdfs:example', XSD['dateTime']])
+        self.assertEqual(len(example_values), 0)
+        example_values = set(r['rdfs:example', XSD['integer']])
+        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) not in example_values)
+        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) not in example_values)
+        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) in example_values)
+        self.assertEqual(len(example_values), 1)
+    
+    def testGetSetDelScalarPredicateDatatype(self):
+        """Test getting, setting, and deleting a scalar predicate with an explicit datatype."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        now = datetime.datetime.now()
+        number = 42
+        r['rdfs:label', XSD['integer']] = number
+        r['rdfs:label', XSD['datetime']] = now
+        self.assertEqual(r['rdfs:label', XSD['integer']],
+                         rdflib.term.Literal(number, datatype=XSD['integer']))
+        self.assertEqual(r['rdfs:label', XSD['datetime']],
+                           rdflib.term.Literal(now, datatype=XSD['datetime']))
+        del r['rdfs:label', XSD['integer']]
+        self.assertEqual(r['rdfs:label'],
+                         rdflib.term.Literal(now, datatype=XSD['datetime']))
+        self.assertEqual(r['rdfs:label', XSD['integer']], None)
+        self.assertEqual(r['rdfs:label', XSD['datetime']],
+                         rdflib.term.Literal(now, datatype=XSD['datetime']))
     
     def testResourcePredicate(self):
         """Test instantiating a class when accessing a predicate."""

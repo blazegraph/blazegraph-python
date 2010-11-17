@@ -1,8 +1,8 @@
 """Provide an interface to SPARQL query endpoints."""
 
+from cStringIO import StringIO
 import urllib
 import urlparse
-from cStringIO import StringIO
 
 import simplejson
 import httplib2
@@ -159,3 +159,22 @@ class PatchableGraphStore(UpdateableGraphStore):
     
     def patch(self, graph_uri, changeset):
         h = httplib2.Http()
+
+def changeset(a,b, graph_uri):
+    """Create an RDF graph with the changeset between graphs a and b"""
+    cs = rdflib.Namespace("http://purl.org/vocab/changeset/schema#")
+    graph = rdflib.Graph()
+    graph.namespace_manager.bind("cs", cs)
+    removal, addition = differences(a,b)
+    change_set = rdflib.BNode()
+    graph.add((change_set, rdflib.RDF.type, cs["ChangeSet"]))
+    graph.add((change_set, cs["createdDate"], rdflib.Literal(datetime.datetime.now(pytz.UTC).isoformat())))
+    graph.add((change_set, cs["subjectOfChange"], rdflib.URIRef(graph_uri)))
+    
+    for stmt in removal:
+        statement = reify(graph, stmt)
+        graph.add((change_set, cs["removal"], statement))
+    for stmt in addition:
+        statement = reify(graph, stmt)
+        graph.add((change_set, cs["addition"], statement))
+    return graph
