@@ -308,6 +308,91 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(r['rdfs:label', XSD['datetime']],
                          rdflib.term.Literal(now, datatype=XSD['datetime']))
     
+    def testGetSetDelPredicateRDFClass(self):
+        """Test getting, setting and deleting a multi-value predicate with an explicit expected RDF Class."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
+        test_subject2 = rdflib.term.URIRef('http://example.com/aposi1')
+        test_subject3 = rdflib.term.URIRef('http://example.com/aposi2')
+        test_subject4 = rdflib.term.URIRef('http://example.com/possip1')
+        
+        NAMESPACES = {
+            'gr': 'http://purl.org/goodrelations/',
+        }
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+        
+        @pymantic.RDF.register_class('gr:ActualProductOrServiceInstance')
+        class ActualProduct(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+            
+        @pymantic.RDF.register_class('gr:ProductOrServicesSomeInstancesPlaceholder')
+        class PlaceholderProduct(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+        
+        offering = Offering.new(graph, test_subject1)
+        aposi1 = ActualProduct.new(graph, test_subject2)
+        aposi2 = ActualProduct.new(graph, test_subject3)
+        possip1 = PlaceholderProduct.new(graph, test_subject4)
+        offering['gr:includes', ActualProduct] = set((aposi1, aposi2,))
+        offering['gr:includes', PlaceholderProduct] = set((possip1,))
+        example_values = set(offering['gr:includes', ActualProduct])
+        self.assert_(aposi1 in example_values)
+        self.assert_(aposi2 in example_values)
+        self.assert_(possip1 not in example_values)
+        self.assertEqual(len(example_values), 2)
+        example_values = set(offering['gr:includes', PlaceholderProduct])
+        self.assert_(aposi1 not in example_values)
+        self.assert_(aposi2 not in example_values)
+        self.assert_(possip1 in example_values)
+        self.assertEqual(len(example_values), 1)
+        del offering['gr:includes', ActualProduct]
+        example_values = set(offering['gr:includes', ActualProduct])
+        self.assertEqual(len(example_values), 0)
+        example_values = set(offering['gr:includes', PlaceholderProduct])
+        self.assert_(aposi1 not in example_values)
+        self.assert_(aposi2 not in example_values)
+        self.assert_(possip1 in example_values)
+        self.assertEqual(len(example_values), 1)
+    
+    def testGetSetDelScalarPredicateRDFClass(self):
+        """Test getting, setting, and deleting a scalar predicate with an explicit language."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
+        test_subject2 = rdflib.term.URIRef('http://example.com/aposi')
+        test_subject4 = rdflib.term.URIRef('http://example.com/possip')
+        
+        NAMESPACES = {
+            'gr': 'http://purl.org/goodrelations/',
+        }
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+            
+            scalars = frozenset(('gr:includes',))
+        
+        @pymantic.RDF.register_class('gr:ActualProductOrServiceInstance')
+        class ActualProduct(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+            
+        @pymantic.RDF.register_class('gr:ProductOrServicesSomeInstancesPlaceholder')
+        class PlaceholderProduct(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+        
+        offering = Offering.new(graph, test_subject1)
+        aposi1 = ActualProduct.new(graph, test_subject2)
+        possip1 = PlaceholderProduct.new(graph, test_subject4)
+        offering['gr:includes', ActualProduct] = aposi1
+        offering['gr:includes', PlaceholderProduct] = possip1
+        self.assertEqual(aposi1, offering['gr:includes', ActualProduct])
+        self.assertEqual(possip1, offering['gr:includes', PlaceholderProduct])
+        del offering['gr:includes', ActualProduct]
+        self.assertEqual(offering['gr:includes', ActualProduct], None)
+        self.assertEqual(possip1, offering['gr:includes', PlaceholderProduct])
+    
     def testResourcePredicate(self):
         """Test instantiating a class when accessing a predicate."""
         @pymantic.RDF.register_class('gr:Offering')

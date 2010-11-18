@@ -233,7 +233,7 @@ class Resource(object):
         datatype = None
         rdf_class = None
         if isinstance(key, tuple) and len(key) >= 2:
-            if isinstance(key[1], Resource):
+            if isinstance(key[1], MetaResource):
                 rdf_class = key[1]
             elif is_language(key[1]):
                 lang = key[1]
