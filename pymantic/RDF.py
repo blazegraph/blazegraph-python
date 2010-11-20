@@ -356,7 +356,10 @@ class Resource(object):
     # Delete item
     
     def __delitem__(self, key):
-        """Deletes predicates for this subject by key dictionary-style."""
+        """Deletes predicates for this subject by key dictionary-style.
+        
+        del resource[key] will always remove the same things from the graph as
+        resource[key] returns."""
         predicate, lang, datatype, rdf_class = self.interpret_key(key)
         if lang:
             objects = self.objects_by_lang(predicate, lang)
