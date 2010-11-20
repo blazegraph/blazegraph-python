@@ -269,23 +269,23 @@ class TestRDF(unittest.TestCase):
         r['rdfs:example', XSD['integer']] = set((number,))
         r['rdfs:example', XSD['dateTime']] = set((now, then,))
         example_values = set(r['rdfs:example', XSD['dateTime']])
-        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) in example_values)
-        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) in example_values)
-        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) not in example_values)
+        print example_values
+        self.assert_(rdflib.term.Literal(now) in example_values)
+        self.assert_(rdflib.term.Literal(then) in example_values)
+        self.assert_(rdflib.term.Literal(number) not in example_values)
         self.assertEqual(len(example_values), 2)
         example_values = set(r['rdfs:example', XSD['integer']])
-        print example_values
-        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) not in example_values)
-        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) not in example_values)
-        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) in example_values)
+        self.assert_(rdflib.term.Literal(now) not in example_values)
+        self.assert_(rdflib.term.Literal(then) not in example_values)
+        self.assert_(rdflib.term.Literal(number) in example_values)
         self.assertEqual(len(example_values), 1)
         del r['rdfs:example', XSD['dateTime']]
         example_values = set(r['rdfs:example', XSD['dateTime']])
         self.assertEqual(len(example_values), 0)
         example_values = set(r['rdfs:example', XSD['integer']])
-        self.assert_(rdflib.term.Literal(now, datatype=XSD['dateTime']) not in example_values)
-        self.assert_(rdflib.term.Literal(then, datatype=XSD['dateTime']) not in example_values)
-        self.assert_(rdflib.term.Literal(number, datatype=XSD['integer']) in example_values)
+        self.assert_(rdflib.term.Literal(now) not in example_values)
+        self.assert_(rdflib.term.Literal(then) not in example_values)
+        self.assert_(rdflib.term.Literal(number) in example_values)
         self.assertEqual(len(example_values), 1)
     
     def testGetSetDelScalarPredicateDatatype(self):
@@ -296,19 +296,32 @@ class TestRDF(unittest.TestCase):
         now = datetime.datetime.now()
         number = 42
         r['rdfs:label', XSD['integer']] = number
-        r['rdfs:label', XSD['datetime']] = now
         self.assertEqual(r['rdfs:label', XSD['integer']],
                          rdflib.term.Literal(number, datatype=XSD['integer']))
-        self.assertEqual(r['rdfs:label', XSD['datetime']],
-                           rdflib.term.Literal(now, datatype=XSD['datetime']))
-        del r['rdfs:label', XSD['integer']]
+        self.assertEqual(r['rdfs:label', XSD['dateTime']], None)
         self.assertEqual(r['rdfs:label'],
-                         rdflib.term.Literal(now, datatype=XSD['datetime']))
+                         rdflib.term.Literal(number, datatype=XSD['integer']))
+        r['rdfs:label', XSD['dateTime']] = now
+        self.assertEqual(r['rdfs:label', XSD['dateTime']],
+                         rdflib.term.Literal(now))
         self.assertEqual(r['rdfs:label', XSD['integer']], None)
-        self.assertEqual(r['rdfs:label', XSD['datetime']],
-                         rdflib.term.Literal(now, datatype=XSD['datetime']))
+        self.assertEqual(r['rdfs:label'], rdflib.term.Literal(now))
+        del r['rdfs:label', XSD['integer']]
+        self.assertEqual(r['rdfs:label', XSD['dateTime']], rdflib.term.Literal(now))
+        self.assertEqual(r['rdfs:label', XSD['integer']], None)
+        self.assertEqual(r['rdfs:label'], rdflib.term.Literal(now))
+        del r['rdfs:label', XSD['dateTime']]
+        self.assertEqual(r['rdfs:label'], None)
+        r['rdfs:label', XSD['integer']] = number
+        self.assertEqual(r['rdfs:label', XSD['integer']],
+                         rdflib.term.Literal(number, datatype=XSD['integer']))
+        self.assertEqual(r['rdfs:label', XSD['dateTime']], None)
+        self.assertEqual(r['rdfs:label'],
+                         rdflib.term.Literal(number, datatype=XSD['integer']))
+        del r['rdfs:label']
+        self.assertEqual(r['rdfs:label'], None)
     
-    def testGetSetDelPredicateRDFClass(self):
+    def testGetSetDelPredicateType(self):
         """Test getting, setting and deleting a multi-value predicate with an explicit expected RDF Class."""
         graph = rdflib.graph.Graph()
         test_subject1 = rdflib.term.URIRef('http://example.com/offering')
@@ -357,7 +370,7 @@ class TestRDF(unittest.TestCase):
         self.assert_(possip1 in example_values)
         self.assertEqual(len(example_values), 1)
     
-    def testGetSetDelScalarPredicateRDFClass(self):
+    def testGetSetDelScalarPredicateType(self):
         """Test getting, setting, and deleting a scalar predicate with an explicit language."""
         graph = rdflib.graph.Graph()
         test_subject1 = rdflib.term.URIRef('http://example.com/offering')
@@ -386,12 +399,76 @@ class TestRDF(unittest.TestCase):
         aposi1 = ActualProduct.new(graph, test_subject2)
         possip1 = PlaceholderProduct.new(graph, test_subject4)
         offering['gr:includes', ActualProduct] = aposi1
-        offering['gr:includes', PlaceholderProduct] = possip1
         self.assertEqual(aposi1, offering['gr:includes', ActualProduct])
+        self.assertEqual(None, offering['gr:includes', PlaceholderProduct])
+        self.assertEqual(aposi1, offering['gr:includes'])
+        offering['gr:includes', PlaceholderProduct] = possip1
+        self.assertEqual(None, offering['gr:includes', ActualProduct])
         self.assertEqual(possip1, offering['gr:includes', PlaceholderProduct])
+        self.assertEqual(possip1, offering['gr:includes'])
         del offering['gr:includes', ActualProduct]
         self.assertEqual(offering['gr:includes', ActualProduct], None)
         self.assertEqual(possip1, offering['gr:includes', PlaceholderProduct])
+        del offering['gr:includes', PlaceholderProduct]
+        self.assertEqual(offering['gr:includes', ActualProduct], None)
+        self.assertEqual(offering['gr:includes', PlaceholderProduct], None)
+        offering['gr:includes', ActualProduct] = aposi1
+        self.assertEqual(aposi1, offering['gr:includes', ActualProduct])
+        self.assertEqual(None, offering['gr:includes', PlaceholderProduct])
+        self.assertEqual(aposi1, offering['gr:includes'])
+        del offering['gr:includes']
+        self.assertEqual(None, offering['gr:includes', ActualProduct])
+        self.assertEqual(None, offering['gr:includes', PlaceholderProduct])
+        self.assertEqual(None, offering['gr:includes'])
+
+    def testSetMixedScalarPredicate(self):
+        """Test getting and setting a scalar predicate with mixed typing."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
+        test_subject2 = rdflib.term.URIRef('http://example.com/aposi')
+        
+        NAMESPACES = {
+            'gr': 'http://purl.org/goodrelations/',
+        }
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+            
+            scalars = frozenset(('gr:includes',))
+        
+        @pymantic.RDF.register_class('gr:ActualProductOrServiceInstance')
+        class ActualProduct(pymantic.RDF.Resource):
+            namespaces = NAMESPACES
+        
+        offering = Offering.new(graph, test_subject1)
+        aposi1 = ActualProduct.new(graph, test_subject2)
+        test_en = rdflib.Literal('foo', lang='en')
+        test_fr = rdflib.Literal('le foo', lang='fr')
+        test_dt = rdflib.Literal(42)
+        
+        offering['gr:includes'] = aposi1
+        self.assertEqual(offering['gr:includes'], aposi1)
+        offering['gr:includes'] = test_dt
+        self.assertEqual(offering['gr:includes'], test_dt)
+        self.assertEqual(offering['gr:includes', ActualProduct], None)
+        offering['gr:includes'] = test_en
+        self.assertEqual(offering['gr:includes', ActualProduct], None)
+        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes'], test_en)
+        self.assertEqual(offering['gr:includes', 'en'], test_en)
+        self.assertEqual(offering['gr:includes', 'fr'], None)
+        offering['gr:includes'] = test_fr
+        self.assertEqual(offering['gr:includes', ActualProduct], None)
+        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes'], test_en)
+        self.assertEqual(offering['gr:includes', 'en'], test_en)
+        self.assertEqual(offering['gr:includes', 'fr'], test_fr)
+        offering['gr:includes'] = aposi1
+        self.assertEqual(offering['gr:includes'], aposi1)
+        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes', 'en'], None)
+        self.assertEqual(offering['gr:includes', 'fr'], None)
     
     def testResourcePredicate(self):
         """Test instantiating a class when accessing a predicate."""

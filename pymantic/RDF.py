@@ -244,32 +244,35 @@ class Resource(object):
             lang = self.lang
         predicate = self.resolve(key)
         return predicate, lang, datatype, rdf_class
-    
-    def safe_graph_add(self, predicate, obj, fallback_lang, fallback_datatype):
-        """Ensures that we're adding appropriate objects to an RDF graph."""
-        if isinstance(obj, Resource):
-            obj = obj.subject
-        if not isinstance(obj, rdflib.Literal) and not isinstance(obj, rdflib.URIRef):
-            obj = rdflib.Literal(obj, lang=fallback_lang, datatype=fallback_datatype)
-        self.graph.add((self.subject, predicate, obj))
 
-    def objects_by(self, predicate, lang=None, datatype=None, rdf_class=None):
-        """Objects for a predicate that match a specified langugae or datatype."""
-        if lang is not None:
+    def objects_by_lang(self, predicate, lang=None):
+        """Objects for a predicate that match a specified language."""
+        if lang:
             return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    (hasattr(obj, 'language') and lang_match(lang, obj.language)) or
-                    not hasattr(obj, 'language')]
-        elif datatype is not None:
+                    (hasattr(obj, 'language') and lang_match(lang, obj.language))]
+        else:
             return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    (hasattr(obj, 'datatype') and obj.datatype == datatype) or
-                    not hasattr(obj, 'datatype')]
-        elif rdf_class is not None:
-            selected_objects = []
-            for obj in self.graph.objects(self.subject, predicate):
-                if isinstance(obj, rdflib.term.Node):
-                    if isinstance(self.classify(self.graph, obj), rdf_class):
-                        selected_objects.append(obj)
-            return selected_objects
+                    hasattr(obj, 'language') and obj.language is not None]
+    
+    def objects_by_datatype(self, predicate, datatype=None):
+        if datatype:
+            return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                    (hasattr(obj, 'datatype') and obj.datatype == datatype)]
+        else:
+            return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                    hasattr(obj, 'datatype') and obj.datatype is not None]
+    
+    def objects_by_type(self, predicate, rdf_class = None):
+        selected_objects = []
+        for obj in self.graph.objects(self.subject, predicate):
+            if isinstance(obj, rdflib.BNode) or isinstance(obj, rdflib.URIRef):
+                if rdf_class is None or\
+                   isinstance(self.classify(self.graph, obj), rdf_class):
+                    selected_objects.append(obj)
+        return selected_objects
+
+    def objects(self, predicate):
+        return [obj for obj in self.graph.objects(self.subject, predicate)]
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
@@ -284,7 +287,18 @@ class Resource(object):
         
         resource['rdfs:label', 'en']"""
         predicate, lang, datatype, rdf_class = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype, rdf_class)
+        if lang:
+            objects = self.objects_by_lang(predicate, lang)
+            if predicate not in self.scalars or (not objects and not isinstance(key, tuple)):
+                objects += self.objects_by_type(predicate)
+        elif datatype:
+            objects = self.objects_by_datatype(predicate, datatype)
+            if predicate not in self.scalars:
+                objects += self.objects_by_type(predicate)
+        elif rdf_class:
+            objects = self.objects_by_type(predicate, rdf_class)
+        else:
+            raise KeyError('Invalid key: %s', key)
         if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
         else:
@@ -296,31 +310,69 @@ class Resource(object):
     # Set item
     
     def __setitem__(self, key, value):
-        """Sets predicates for this subject by key dictionary-style."""
+        """Sets objects for predicates for this subject by key dictionary-style.
+        
+        1) Setting a predicate without a filter replaces the set of all objects
+           for that predicate. The exception is assigning a Literal object with
+           a language to a scalar predicate. This will only replace objects that
+           share its language, though any resources or datatyped literals will
+           be removed.
+           
+        2) Setting a predicate with a filter will only replace objects that
+           match the specified filter, including all resource references for
+           language or datatype filters. The exception is scalars, where
+           datatyped literals and objects will replace everything else, and
+           language literals can co-exist but will replace all datatyped
+           literals.
+        
+        3) Attempting to set a literal that doesn't make sense will raise a
+           ValueError. For example, including an english or dateTime literal
+           when setting a predicate's objects using a French language filter
+           will result in a ValueError. Object references are always acceptable
+           to include."""
         predicate, lang, datatype, rdf_class = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype, rdf_class)
+        value = literalize(self.graph, value, lang, datatype)
+        if not isinstance(key, tuple):
+            # Implicit specification.
+            objects = self._objects_for_implicit_set(predicate, value)
+        else:
+            # Explicit specification.
+            objects = self._objects_for_explicit_set(predicate, value, lang,
+                                                     datatype, rdf_class)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
-        
-        if predicate in self.scalars:
-            self.safe_graph_add(predicate, value, lang, datatype)
+        if isinstance(value, frozenset) or isinstance(value, tuple):
+            for obj in value:
+                if isinstance(obj, Resource):
+                    self.graph.add((self.subject, predicate, obj.subject))
+                else:
+                    self.graph.add((self.subject, predicate, obj))
         else:
-            if isinstance(value, list) or isinstance(value, tuple) or\
-               isinstance(value, set) or isinstance(value, frozenset):
-                for v in value:
-                    self.safe_graph_add(predicate, v, lang, datatype)
+            if isinstance(value, Resource):
+                self.graph.add((self.subject, predicate, value.subject))
             else:
-                self.safe_graph_add(predicate, value, lang, datatype)
+                self.graph.add((self.subject, predicate, value))
     
     # Delete item
     
     def __delitem__(self, key):
         """Deletes predicates for this subject by key dictionary-style."""
         predicate, lang, datatype, rdf_class = self.interpret_key(key)
-        objects = self.objects_by(predicate, lang, datatype, rdf_class)
+        if lang:
+            objects = self.objects_by_lang(predicate, lang)
+            if predicate not in self.scalars or not objects:
+                objects += self.objects_by_type(predicate)
+        elif datatype:
+            objects = self.objects_by_datatype(predicate, datatype)
+            if predicate not in self.scalars or not objects:
+                objects += self.objects_by_type(predicate)
+        elif rdf_class:
+            objects = self.objects_by_type(predicate, rdf_class)
+        else:
+            raise KeyError('Invalid key: %s', key)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
-    
+   
     # Membership test
     
     @classmethod
@@ -373,6 +425,73 @@ class Resource(object):
                 cls.__metaclass__._classes[types] = the_class
                 the_class.rdf_classes = frozenset(types)
             return cls.__metaclass__._classes[types](graph, obj)
+    
+    def _objects_for_implicit_set(self, predicate, value):
+        if (isinstance(value, frozenset) or isinstance(value, tuple)) and\
+           predicate in self.scalars:
+            raise ValueError('Cannot store sequences in scalars')
+        elif predicate in self.scalars and isinstance(value, rdflib.Literal)\
+             and value.language:
+            return self.objects_by_lang(predicate, value.language) +\
+                   self.objects_by_datatype(predicate) +\
+                   self.objects_by_type(predicate)
+        else:
+            return self.objects(predicate)
+    
+    def _objects_for_explicit_set(self, predicate, value, lang, datatype, rdf_class):
+        if not check_objects(self.graph, value, lang, datatype, rdf_class):
+            raise ValueError('Improper value provided.')
+        if lang and predicate in self.scalars:
+            return self.objects_by_lang(predicate, lang) +\
+                   self.objects_by_datatype(predicate) +\
+                   self.objects_by_type(predicate)
+        elif lang and predicate not in self.scalars:
+            return self.objects_by_lang(predicate, lang) +\
+                   self.objects_by_type(predicate)
+        elif predicate in self.scalars:
+            return self.objects(predicate)
+        elif datatype:
+            return self.objects_by_datatype(predicate, datatype) +\
+                   self.objects_by_type(predicate)
+        elif rdf_class:
+            return self.objects_by_type(predicate, rdf_class)
+
+def literalize(graph, value, lang, datatype):
+    """Convert either a value or a sequence of values to either a Literal or
+    a Resource."""
+    if isinstance(value, set) or isinstance(value, frozenset):
+        return frozenset(objectify_value(graph, v, lang, datatype) for v in value)
+    elif isinstance(value, list) or isinstance(value, tuple):
+        # Eventually return tuple.
+        raise NotImplemented('Still need to do Seq handling.')
+    else:
+        return objectify_value(graph, value, lang, datatype)
+
+def objectify_value(graph, value, lang = None, datatype = None):
+    """Convert a single value into either a Literal or a Resource."""
+    if isinstance(value, rdflib.BNode) or isinstance(value, rdflib.URIRef):
+        return Resource.classify(graph, value)
+    elif isinstance(value, rdflib.Literal) or isinstance(value, Resource):
+        return value
+    elif isinstance(value, str) or isinstance(value, unicode):
+        return rdflib.Literal(value, lang = lang, datatype = datatype)
+    else:
+        return rdflib.Literal(value)
+
+def check_objects(graph, value, lang, datatype, rdf_class):
+    """Determine that value or the things in values are appropriate for the
+    specified explicit object access key."""
+    if isinstance(value, frozenset) or isinstance(value, tuple):
+        for v in value:
+            if (lang and not lang_match(v.language, lang)) or \
+               (datatype and v.datatype != datatype) or \
+               (rdf_class and not isinstance(v, rdf_class)):
+                return False
+        return True
+    else:
+        return (lang and lang_match(value.language, lang)) or \
+               (datatype and value.datatype == datatype) or \
+               (rdf_class and isinstance(value, rdf_class))
 
 def retrieve_resource(graph, subject):
     """Attempt to retrieve an RDF resource VIA HTTP."""
