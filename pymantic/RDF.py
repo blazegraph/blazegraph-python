@@ -186,10 +186,6 @@ class Resource(object):
         if not isinstance(subject, rdflib.term.Node):
             subject = rdflib.term.URIRef(subject)
         self.subject = subject
-        if not self.check_classification():
-            retrieve_resource(graph, subject)
-            if not self.check_classification():
-                raise ClassificationMismatchError()
     
     @classmethod
     def new(cls, graph, subject):
@@ -200,7 +196,9 @@ class Resource(object):
             graph.add((subject, cls.resolve('rdf:type'), rdf_class))
         return cls(graph, subject)
     
-    def check_classification(self):
+    def is_a(self):
+        """Test to see if the subject of this resource has all the necessary
+        RDF classes applied to it."""
         if hasattr(self, 'rdf_classes'):
             for rdf_class in self.rdf_classes:
                 if (self.subject, self.resolve('rdf:type'), rdf_class) not in self.graph:
@@ -246,7 +244,8 @@ class Resource(object):
         return predicate, lang, datatype, rdf_class
 
     def objects_by_lang(self, predicate, lang=None):
-        """Objects for a predicate that match a specified language."""
+        """Objects for a predicate that match a specified language or, if
+        language is None, have a language specified."""
         if lang:
             return [obj for obj in self.graph.objects(self.subject, predicate) if\
                     (hasattr(obj, 'language') and lang_match(lang, obj.language))]
@@ -255,6 +254,8 @@ class Resource(object):
                     hasattr(obj, 'language') and obj.language is not None]
     
     def objects_by_datatype(self, predicate, datatype=None):
+        """Objects for a predicate that match a specified datatype or, if
+        datatype is None, have a datatype specified."""
         if datatype:
             return [obj for obj in self.graph.objects(self.subject, predicate) if\
                     (hasattr(obj, 'datatype') and obj.datatype == datatype)]
@@ -262,16 +263,20 @@ class Resource(object):
             return [obj for obj in self.graph.objects(self.subject, predicate) if\
                     hasattr(obj, 'datatype') and obj.datatype is not None]
     
-    def objects_by_type(self, predicate, rdf_class = None):
+    def objects_by_type(self, predicate, resource_class = None):
+        """Objects for a predicate that are instances of a particular Resource
+        subclass or, if resource_class is none, are Resources."""
         selected_objects = []
         for obj in self.graph.objects(self.subject, predicate):
             if isinstance(obj, rdflib.BNode) or isinstance(obj, rdflib.URIRef):
-                if rdf_class is None or\
-                   isinstance(self.classify(self.graph, obj), rdf_class):
+                if resource_class is None or\
+                   isinstance(self.classify(self.graph, obj),
+                              resource_class):
                     selected_objects.append(obj)
         return selected_objects
 
     def objects(self, predicate):
+        """All objects for a predicate."""
         return [obj for obj in self.graph.objects(self.subject, predicate)]
     
     def __getitem__(self, key):
@@ -430,6 +435,8 @@ class Resource(object):
             return cls.__metaclass__._classes[types](graph, obj)
     
     def _objects_for_implicit_set(self, predicate, value):
+        """Find the objects that should be removed from the graph when doing a
+        dictionary-style set with implicit type information."""
         if (isinstance(value, frozenset) or isinstance(value, tuple)) and\
            predicate in self.scalars:
             raise ValueError('Cannot store sequences in scalars')
@@ -442,6 +449,8 @@ class Resource(object):
             return self.objects(predicate)
     
     def _objects_for_explicit_set(self, predicate, value, lang, datatype, rdf_class):
+        """Find the objects that should be removed from the graph when doing a
+        dictionary-style set with explicit type information."""
         if not check_objects(self.graph, value, lang, datatype, rdf_class):
             raise ValueError('Improper value provided.')
         if lang and predicate in self.scalars:
