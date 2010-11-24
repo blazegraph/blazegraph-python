@@ -564,3 +564,34 @@ class TestRDF(unittest.TestCase):
             this_subject = rdflib.term.URIRef(test_subject_base + str(i))
             offering = Offering(graph, this_subject)
             self.assert_(offering in offerings)
+            
+    def testBack(self):
+        """Test following a predicate backwards."""
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+            
+        @pymantic.RDF.register_class('gr:PriceSpecification')
+        class PriceSpecification(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        graph = rdflib.ConjunctiveGraph()
+        offering1 = Offering.new(graph, 'http://example.com/offering1')
+        offering2 = Offering.new(graph, 'http://example.com/offering2')
+        offering3 = Offering.new(graph, 'http://example.com/offering3')
+        price1 = PriceSpecification.new(graph, 'http://example.com/price1')
+        price2 = PriceSpecification.new(graph, 'http://example.com/price2')
+        price3 = PriceSpecification.new(graph, 'http://example.com/price3')
+        offering1['gr:hasPriceSpecification'] = set((price1, price2, price3,))
+        offering2['gr:hasPriceSpecification'] = set((price2, price3,))
+        self.assertEqual(set(price1.back('gr:hasPriceSpecification')),
+                         set((offering1,)))
+        self.assertEqual(set(price2.back('gr:hasPriceSpecification')),
+                         set((offering1,offering2,)))
+        self.assertEqual(set(price3.back('gr:hasPriceSpecification')),
+                         set((offering1,offering2,)))

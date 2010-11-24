@@ -279,6 +279,13 @@ class Resource(object):
         """All objects for a predicate."""
         return [obj for obj in self.graph.objects(self.subject, predicate)]
     
+    def back(self, predicate):
+        """All subjects for which this resource is an object for the given
+        predicate."""
+        predicate = self.resolve(predicate)
+        for subject in self.graph.subjects(predicate, self.subject):
+            yield self.classify(self.graph, subject)
+    
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
         
