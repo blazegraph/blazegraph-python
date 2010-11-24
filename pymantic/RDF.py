@@ -298,19 +298,7 @@ class Resource(object):
         Or a predicate name and a datatype or language:
         
         resource['rdfs:label', 'en']"""
-        predicate, lang, datatype, rdf_class = self.interpret_key(key)
-        if lang:
-            objects = self.objects_by_lang(predicate, lang)
-            if predicate not in self.scalars or (not objects and not isinstance(key, tuple)):
-                objects += self.objects_by_type(predicate)
-        elif datatype:
-            objects = self.objects_by_datatype(predicate, datatype)
-            if predicate not in self.scalars:
-                objects += self.objects_by_type(predicate)
-        elif rdf_class:
-            objects = self.objects_by_type(predicate, rdf_class)
-        else:
-            raise KeyError('Invalid key: %s', key)
+        predicate, objects = self._objects_for_key(key)
         if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
         else:
@@ -372,23 +360,19 @@ class Resource(object):
         
         del resource[key] will always remove the same things from the graph as
         resource[key] returns."""
-        predicate, lang, datatype, rdf_class = self.interpret_key(key)
-        if lang:
-            objects = self.objects_by_lang(predicate, lang)
-            if predicate not in self.scalars or not objects:
-                objects += self.objects_by_type(predicate)
-        elif datatype:
-            objects = self.objects_by_datatype(predicate, datatype)
-            if predicate not in self.scalars or not objects:
-                objects += self.objects_by_type(predicate)
-        elif rdf_class:
-            objects = self.objects_by_type(predicate, rdf_class)
-        else:
-            raise KeyError('Invalid key: %s', key)
+        predicate, objects = self._objects_for_key(key)
         for obj in objects:
             self.graph.remove((self.subject, predicate, obj))
    
     # Membership test
+    
+    def __contains__(self, value):
+        """Uses the same logic as __getitem__ to determine if a predicate or
+        filtered predicate is present for this object."""
+        predicate, objects = self._objects_for_key(value)
+        if objects:
+            return True
+        return False
     
     @classmethod
     def in_graph(cls, graph):
@@ -440,6 +424,25 @@ class Resource(object):
                 cls.__metaclass__._classes[types] = the_class
                 the_class.rdf_classes = frozenset(types)
             return cls.__metaclass__._classes[types](graph, obj)
+    
+    def _objects_for_key(self, key):
+        """Find objects that are potentially interesting when doing normal
+        dictionary key-style access - IE, __getitem__, __delitem__, __contains__,
+        and pretty much everything but __setitem__."""
+        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        if lang:
+            objects = self.objects_by_lang(predicate, lang)
+            if predicate not in self.scalars or (not objects and not isinstance(key, tuple)):
+                objects += self.objects_by_type(predicate)
+        elif datatype:
+            objects = self.objects_by_datatype(predicate, datatype)
+            if predicate not in self.scalars:
+                objects += self.objects_by_type(predicate)
+        elif rdf_class:
+            objects = self.objects_by_type(predicate, rdf_class)
+        else:
+            raise KeyError('Invalid key: %s', key)
+        return predicate, objects
     
     def _objects_for_implicit_set(self, predicate, value):
         """Find the objects that should be removed from the graph when doing a

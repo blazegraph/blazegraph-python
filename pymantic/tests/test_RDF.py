@@ -564,6 +564,23 @@ class TestRDF(unittest.TestCase):
             this_subject = rdflib.term.URIRef(test_subject_base + str(i))
             offering = Offering(graph, this_subject)
             self.assert_(offering in offerings)
+    
+    def testContained(self):
+        """Test in against a multi-value predicate."""
+        graph = rdflib.graph.Graph()
+        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        r = pymantic.RDF.Resource(graph, test_subject1)
+        r['rdfs:example'] = set(('foo', 'bar'))
+        self.assert_('rdfs:example' in r)
+        self.assert_(('rdfs:example', 'en') in r)
+        self.assertFalse(('rdfs:example', 'fr') in r)
+        self.assertFalse('rdfs:examplefoo' in r)
+        del r['rdfs:example']
+        self.assertFalse('rdfs:example' in r)
+        self.assertFalse(('rdfs:example', 'en') in r)
+        self.assertFalse(('rdfs:example', 'fr') in r)
+        self.assertFalse('rdfs:examplefoo' in r)
+        r['rdfs:example', 'fr'] = 'le foo'
             
     def testBack(self):
         """Test following a predicate backwards."""
