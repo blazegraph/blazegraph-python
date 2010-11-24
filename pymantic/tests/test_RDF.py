@@ -612,3 +612,71 @@ class TestRDF(unittest.TestCase):
                          set((offering1,offering2,)))
         self.assertEqual(set(price3.object_of(predicate='gr:hasPriceSpecification')),
                          set((offering1,offering2,)))
+    
+    def testGetAllValues(self):
+        """Test getting all values for a predicate."""
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        en = rdflib.Literal('foo', lang='en')
+        fr = rdflib.Literal('bar', lang='fr')
+        es = rdflib.Literal('baz', lang='es')
+        xsdstring = rdflib.Literal('aap', datatype=XSD['string'])
+        xsddecimal = rdflib.Literal('9.95', datatype=XSD['decimal'])
+        graph = rdflib.ConjunctiveGraph()
+        offering = Offering.new(graph, 'http://example.com/offering')
+        offering['gr:description'] = set((en, fr, es,))
+        self.assertEqual(frozenset(offering['gr:description']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
+        self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
+        self.assertEqual(frozenset(offering['gr:description', None]),
+                         frozenset((en, fr, es,)))
+        offering['gr:description'] = set((xsdstring, xsddecimal,))
+        self.assertEqual(frozenset(offering['gr:description', XSD['string']]),
+                         frozenset((xsdstring,)))
+        self.assertEqual(frozenset(offering['gr:description', XSD['decimal']]),
+                         frozenset((xsddecimal,)))
+        self.assertEqual(frozenset(offering['gr:description', None]),
+                         frozenset((xsdstring, xsddecimal,)))
+        offering['gr:description'] = set((en, fr, es, xsdstring, xsddecimal,))
+        self.assertEqual(frozenset(offering['gr:description']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
+        self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
+        self.assertEqual(frozenset(offering['gr:description', XSD['string']]),
+                         frozenset((xsdstring,)))
+        self.assertEqual(frozenset(offering['gr:description', XSD['decimal']]),
+                         frozenset((xsddecimal,)))
+        self.assertEqual(frozenset(offering['gr:description', None]),
+                         frozenset((en, fr, es, xsdstring, xsddecimal,)))
+    
+    def testGetAllValuesScalar(self):
+        """Test getting all values for a predicate."""
+        
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+            
+            scalars = frozenset(('gr:description',))
+        
+        en = rdflib.Literal('foo', lang='en')
+        fr = rdflib.Literal('bar', lang='fr')
+        es = rdflib.Literal('baz', lang='es')
+        graph = rdflib.ConjunctiveGraph()
+        offering = Offering.new(graph, 'http://example.com/offering')
+        offering['gr:description'] = en
+        offering['gr:description'] = fr
+        offering['gr:description'] = es
+        self.assertEqual(offering['gr:description'], en)
+        self.assertEqual(offering['gr:description', 'en'], en)
+        self.assertEqual(offering['gr:description', 'fr'], fr)
+        self.assertEqual(offering['gr:description', 'es'], es)
+        self.assertEqual(frozenset(offering['gr:description', None]),
+                         frozenset((en, fr, es,)))

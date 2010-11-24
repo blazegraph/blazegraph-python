@@ -37,8 +37,6 @@ def lang_match(lang1, lang2):
     """Determines if two languages are, in fact, the same language.
     
     Eg: en is the same as en-us and en-uk."""
-    if lang1 is None or lang2 is None:
-        return True
     return lang1 == lang2
 
 def parse_curie(curie, namespaces):
@@ -283,13 +281,13 @@ class Resource(object):
         Passing in a value of None will result in all values for the predicate
         in question being returned."""
         predicate, objects = self._objects_for_key(key)
-        if predicate in self.scalars:
-            return self.classify(self.graph, util.one_or_none(objects))
-        else:
+        if predicate not in self.scalars or (isinstance(key, tuple) and key[1] is None):
             def getitem_iter_results():
                 for obj in objects:
                     yield self.classify(self.graph, obj)
             return getitem_iter_results()
+        else:
+            return self.classify(self.graph, util.one_or_none(objects))
     
     # Set item
     
@@ -437,10 +435,12 @@ class Resource(object):
         predicate, lang, datatype, rdf_class = self._interpret_key(key)
         if lang is None and datatype is None and rdf_class is None:
             objects = self.objects(predicate)
-        if lang:
+        elif lang:
             objects = self.objects_by_lang(predicate, lang)
-            if predicate not in self.scalars or (not objects and not isinstance(key, tuple)):
+            if not isinstance(key, tuple):
                 objects += self.objects_by_type(predicate)
+            if not objects:
+                objects += self.objects_by_datatype(predicate)
         elif datatype:
             objects = self.objects_by_datatype(predicate, datatype)
             if predicate not in self.scalars:
