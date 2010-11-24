@@ -606,9 +606,9 @@ class TestRDF(unittest.TestCase):
         price3 = PriceSpecification.new(graph, 'http://example.com/price3')
         offering1['gr:hasPriceSpecification'] = set((price1, price2, price3,))
         offering2['gr:hasPriceSpecification'] = set((price2, price3,))
-        self.assertEqual(set(price1.back('gr:hasPriceSpecification')),
+        self.assertEqual(set(price1.object_of(predicate='gr:hasPriceSpecification')),
                          set((offering1,)))
-        self.assertEqual(set(price2.back('gr:hasPriceSpecification')),
+        self.assertEqual(set(price2.object_of(predicate='gr:hasPriceSpecification')),
                          set((offering1,offering2,)))
-        self.assertEqual(set(price3.back('gr:hasPriceSpecification')),
+        self.assertEqual(set(price3.object_of(predicate='gr:hasPriceSpecification')),
                          set((offering1,offering2,)))

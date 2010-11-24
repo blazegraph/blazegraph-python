@@ -224,25 +224,6 @@ class Resource(object):
     def __hash__(self):
         return hash(self.subject)
     
-    def interpret_key(self, key):
-        """Break up a key into a predicate name and optional language or
-        datatype specifier."""
-        lang = None
-        datatype = None
-        rdf_class = None
-        if isinstance(key, tuple) and len(key) >= 2:
-            if isinstance(key[1], MetaResource):
-                rdf_class = key[1]
-            elif is_language(key[1]):
-                lang = key[1]
-            else:
-                datatype = key[1]
-            key = key[0]
-        else:
-            lang = self.lang
-        predicate = self.resolve(key)
-        return predicate, lang, datatype, rdf_class
-
     def objects_by_lang(self, predicate, lang=None):
         """Objects for a predicate that match a specified language or, if
         language is None, have a language specified."""
@@ -279,7 +260,7 @@ class Resource(object):
         """All objects for a predicate."""
         return [obj for obj in self.graph.objects(self.subject, predicate)]
     
-    def back(self, predicate):
+    def object_of(self, predicate):
         """All subjects for which this resource is an object for the given
         predicate."""
         predicate = self.resolve(predicate)
@@ -297,7 +278,10 @@ class Resource(object):
         
         Or a predicate name and a datatype or language:
         
-        resource['rdfs:label', 'en']"""
+        resource['rdfs:label', 'en']
+        
+        Passing in a value of None will result in all values for the predicate
+        in question being returned."""
         predicate, objects = self._objects_for_key(key)
         if predicate in self.scalars:
             return self.classify(self.graph, util.one_or_none(objects))
@@ -330,7 +314,7 @@ class Resource(object):
            when setting a predicate's objects using a French language filter
            will result in a ValueError. Object references are always acceptable
            to include."""
-        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        predicate, lang, datatype, rdf_class = self._interpret_key(key)
         value = literalize(self.graph, value, lang, datatype)
         if not isinstance(key, tuple):
             # Implicit specification.
@@ -366,10 +350,10 @@ class Resource(object):
    
     # Membership test
     
-    def __contains__(self, value):
+    def __contains__(self, predicate):
         """Uses the same logic as __getitem__ to determine if a predicate or
         filtered predicate is present for this object."""
-        predicate, objects = self._objects_for_key(value)
+        predicate, objects = self._objects_for_key(predicate)
         if objects:
             return True
         return False
@@ -425,11 +409,34 @@ class Resource(object):
                 the_class.rdf_classes = frozenset(types)
             return cls.__metaclass__._classes[types](graph, obj)
     
+    def _interpret_key(self, key):
+        """Break up a key into a predicate name and optional language or
+        datatype specifier."""
+        lang = None
+        datatype = None
+        rdf_class = None
+        if isinstance(key, tuple) and len(key) >= 2:
+            if key[1] is None:
+                pass # All values are already None, do nothing.
+            elif isinstance(key[1], MetaResource):
+                rdf_class = key[1]
+            elif is_language(key[1]):
+                lang = key[1]
+            else:
+                datatype = key[1]
+            key = key[0]
+        else:
+            lang = self.lang
+        predicate = self.resolve(key)
+        return predicate, lang, datatype, rdf_class
+    
     def _objects_for_key(self, key):
         """Find objects that are potentially interesting when doing normal
         dictionary key-style access - IE, __getitem__, __delitem__, __contains__,
         and pretty much everything but __setitem__."""
-        predicate, lang, datatype, rdf_class = self.interpret_key(key)
+        predicate, lang, datatype, rdf_class = self._interpret_key(key)
+        if lang is None and datatype is None and rdf_class is None:
+            objects = self.objects(predicate)
         if lang:
             objects = self.objects_by_lang(predicate, lang)
             if predicate not in self.scalars or (not objects and not isinstance(key, tuple)):
