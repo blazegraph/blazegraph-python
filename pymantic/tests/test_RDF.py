@@ -680,3 +680,29 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(offering['gr:description', 'es'], es)
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((en, fr, es,)))
+    
+    def testErase(self):
+        """Test erasing an object from the graph."""
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+            
+            scalars = frozenset(('gr:name',))
+        
+        graph = rdflib.ConjunctiveGraph()
+        offering1 = Offering.new(graph, 'http://example.com/offering1')
+        offering2 = Offering.new(graph, 'http://example.com/offering2')
+        offering1['gr:name'] = 'Foo'
+        offering1['gr:description'] = set(('Baz', 'Garply',))
+        offering2['gr:name'] = 'Bar'
+        offering2['gr:description'] = set(('Aap', 'Mies',))
+        self.assert_(offering1.is_a())
+        self.assert_(offering2.is_a())
+        offering1.erase()
+        self.assertFalse(offering1.is_a())
+        self.assert_(offering2.is_a())
+        self.assertFalse(offering1['gr:name'])
+        self.assertFalse(frozenset(offering1['gr:description']))
+        self.assertEqual(offering2['gr:name'], rdflib.Literal('Bar', lang='en'))

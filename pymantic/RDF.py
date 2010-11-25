@@ -194,6 +194,10 @@ class Resource(object):
             graph.add((subject, cls.resolve('rdf:type'), rdf_class))
         return cls(graph, subject)
     
+    def erase(self):
+        """Erase all tripes for this resource from the graph."""
+        self.graph.remove((self.subject, None, None))
+    
     def is_a(self):
         """Test to see if the subject of this resource has all the necessary
         RDF classes applied to it."""
