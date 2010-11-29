@@ -1,0 +1,85 @@
+from rdflib.serializer import Serializer
+from rdflib import URIRef, Literal, BNode
+
+class NTSerializer(Serializer):
+    """
+    Serializes RDF graphs to NTriples format as per standard.
+    
+    Follows http://www.w3.org/TR/rdf-testcases/#ntriples
+    
+    Based on NTSerializer from rdflib.
+    """
+    
+    def serialize(self, stream, base=None, encoding=None, **args):
+        if base is not None:
+            warnings.warn("NTSerializer does not support base.")
+        if encoding is not None:
+            warnings.warn("NTSerializer does not use custom encoding.")
+        encoding = self.encoding
+        for triple in self.store:
+            stream.write(_nt_row(triple).encode(encoding, "replace"))
+        stream.write("\n")
+
+def _nt_row(triple):
+    return u"%s %s %s .\n" % (nt(triple[0]),
+            nt(triple[1]),
+            nt(triple[2]))
+
+def nt(node):
+    if isinstance(node, URIRef):
+        return '<' + unicode_escape(unicode(node)) + '>'
+    if isinstance(node, BNode):
+        return '_:' + str(node)
+    if isinstance(node, Literal):
+        literal = '"' + unicode_escape(unicode(node)) + '"'
+        if node.language is not None:
+            literal += '@' + node.language
+        elif node.datatype is not None:
+            literal += '^^' + nt(node.datatype)
+        return literal
+
+def unicode_escape(node_string):
+    output_string = ''
+    for char in node_string:
+        if char == u'\u0009':
+            output_string += '\\t'
+        elif char == u'\u000A':
+            output_string += '\\n'
+        elif char == u'\u000D':
+            output_string += '\\r'
+        elif char == u'\u0022':
+            output_string += '\\"'
+        elif char == u'\u005C':
+            output_string += '\\\\'
+        elif char >= u'\u0020' and char <= u'\u0021' or\
+             char >= u'\u0023' and char <= u'\u005B' or\
+             char >= u'\u005D' and char <= u'\u007E':
+            output_string += char
+        else:
+            output_string += '\\u%04X' % ord(char)
+    return output_string
+
+class NQSerializer(Serializer):
+    """
+    Serializes RDF graphs to NQuads format as per standard.
+    
+    Follows http://sw.deri.org/2008/07/n-quads/
+    
+    Based on NTSerializer from rdflib.
+    """
+    
+    def serialize(self, stream, base=None, encoding=None, **args):
+        if base is not None:
+            warnings.warn("NTSerializer does not support base.")
+        if encoding is not None:
+            warnings.warn("NTSerializer does not use custom encoding.")
+        encoding = self.encoding
+        for quad in self.store.quads((None, None, None)):
+            stream.write(_nq_row(quad).encode(encoding, "replace"))
+        stream.write("\n")
+
+def _nq_row(triple):
+    return u"%s %s %s %s .\n" % (nt(triple[0]),
+            nt(triple[1]),
+            nt(triple[2]),
+            nt(triple[3].identifier))
