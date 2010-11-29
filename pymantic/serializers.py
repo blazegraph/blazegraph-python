@@ -1,5 +1,11 @@
+import re
+import warnings
+
 from rdflib.serializer import Serializer
 from rdflib import URIRef, Literal, BNode
+from rdflib.plugins.parsers.ntriples import uriref as uriref_re
+
+uriref_re = re.compile(uriref_re)
 
 class NTSerializer(Serializer):
     """
@@ -17,7 +23,10 @@ class NTSerializer(Serializer):
             warnings.warn("NTSerializer does not use custom encoding.")
         encoding = self.encoding
         for triple in self.store:
-            stream.write(_nt_row(triple).encode(encoding, "replace"))
+            try:
+                stream.write(_nt_row(triple).encode(encoding, "replace"))
+            except NotURIError, e:
+                warnings.warn('Ignoring triple, Not a URI: %s' % e.message)
         stream.write("\n")
 
 def _nt_row(triple):
@@ -25,9 +34,15 @@ def _nt_row(triple):
             nt(triple[1]),
             nt(triple[2]))
 
+class NotURIError(object):
+    pass
+
 def nt(node):
     if isinstance(node, URIRef):
-        return '<' + unicode_escape(unicode(node)) + '>'
+        uriref = '<' + unicode_escape(unicode(node)) + '>'
+        if not uriref_re.match(uriref):
+            raise NotURIError(uriref)
+        return uriref
     if isinstance(node, BNode):
         return '_:' + str(node)
     if isinstance(node, Literal):
@@ -75,7 +90,10 @@ class NQSerializer(Serializer):
             warnings.warn("NTSerializer does not use custom encoding.")
         encoding = self.encoding
         for quad in self.store.quads((None, None, None)):
-            stream.write(_nq_row(quad).encode(encoding, "replace"))
+            try:
+                stream.write(_nq_row(quad).encode(encoding, "replace"))
+            except NotURIError, e:
+                warnings.warn('Ignoring quad, Not a URI: %s' % e.message)
         stream.write("\n")
 
 def _nq_row(triple):
