@@ -3,9 +3,7 @@ import warnings
 
 from rdflib.serializer import Serializer
 from rdflib import URIRef, Literal, BNode
-from rdflib.plugins.parsers.ntriples import uriref as uriref_re
-
-uriref_re = re.compile(uriref_re)
+from rdflib.plugins.parsers.ntriples import r_uriref
 
 class NTSerializer(Serializer):
     """
@@ -34,13 +32,13 @@ def _nt_row(triple):
             nt(triple[1]),
             nt(triple[2]))
 
-class NotURIError(object):
+class NotURIError(Exception):
     pass
 
 def nt(node):
     if isinstance(node, URIRef):
         uriref = '<' + unicode_escape(unicode(node)) + '>'
-        if not uriref_re.match(uriref):
+        if not r_uriref.match(uriref):
             raise NotURIError(uriref)
         return uriref
     if isinstance(node, BNode):
