@@ -178,3 +178,19 @@ def changeset(a,b, graph_uri):
         statement = reify(graph, stmt)
         graph.add((change_set, cs["addition"], statement))
     return graph
+
+def reify(graph, statement):
+    """Add reifed statement to graph"""
+    s,p,o = statement
+    statement_node = rdflib.BNode()
+    graph.add((statement_node, rdflib.RDF.type, rdflib.RDF.Statement))
+    graph.add((statement_node, rdflib.RDF.subject,s))
+    graph.add((statement_node, rdflib.RDF.predicate, p))
+    graph.add((statement_node, rdflib.RDF.object, o))
+    return statement_node
+
+def differences(a, b, exclude=[]):
+    """Return (removes,adds) excluding statements with a predicate in exclude"""
+    exclude = [rdflib.URIRef(excluded) for excluded in exclude]
+    return ([s for s in a if s not in b and s[1] not in exclude],
+            [s for s in b if s not in a and s[1] not in exclude])
