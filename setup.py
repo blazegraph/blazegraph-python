@@ -28,8 +28,12 @@ setup(name='pymantic',
           'httplib2',
           'lxml',
           'mock_http',
+          'pytz',
           ],
       entry_points="""
       # -*- Entry points: -*-
       """,
+      scripts = [
+          'pymantic/scripts/named_graph_to_nquads',
+      ]
       )
