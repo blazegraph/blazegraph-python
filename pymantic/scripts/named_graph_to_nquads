@@ -12,9 +12,9 @@ Reads in RDF graphs and reserializes them as nquads to stdout, using the basenam
     
     parser.add_option('-f', '--input-format', dest='input_format', default='application/rdf+xml',
                       help='The content type of the input graphs. Default: application/rdf+xml')
-    parser.add_option('-u', '--url-escaped-filenames', dest='unquote',
-                      default=False, action='store_true',
-                      help="Do filenames need to be urllib.unquote'd to get graph names?")
+    parser.add_option('-p', '--plain-filenames', dest='unquote',
+                      default=True, action='store_false',
+                      help="Are the filenames graph names, or do they need to be urllib.unquote'd?")
     
     (options, args) = parser.parse_args()
 
