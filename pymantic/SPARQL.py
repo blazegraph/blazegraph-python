@@ -161,6 +161,14 @@ class PatchableGraphStore(UpdateableGraphStore):
     
     def patch(self, graph_uri, changeset):
         h = httplib2.Http()
+        graph_xml = changeset.serialize(format = 'xml', encoding='utf-8')
+        resp, content = h.request(
+            uri = self.request_url(graph_uri), method = 'PATCH', body = graph_xml,
+            headers = {'content-type': 'application/vnd.talis.changeset+xml',},)
+        if resp['status'] not in ('200', '201', '204'):
+            raise Exception('Error from Graph Store (%s): %s' %\
+                            (resp['status'], content))
+        return True
 
 def changeset(a,b, graph_uri):
     """Create an RDF graph with the changeset between graphs a and b"""
