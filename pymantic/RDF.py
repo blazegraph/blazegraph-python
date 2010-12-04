@@ -37,7 +37,14 @@ def lang_match(lang1, lang2):
     """Determines if two languages are, in fact, the same language.
     
     Eg: en is the same as en-us and en-uk."""
-    return lang1 == lang2
+    if lang1 is None and lang2 is None:
+        return True
+    elif lang1 is None or lang2 is None:
+        return False
+    lang1 = lang1.partition('-')
+    lang2 = lang2.partition('-')
+    return lang1[0] == lang2[0] and (lang1[2] == '' or lang2[2] == '' or\
+                                     lang1[2] == lang2[2])
 
 def parse_curie(curie, namespaces):
     """
