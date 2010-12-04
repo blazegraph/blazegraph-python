@@ -29,6 +29,7 @@ setup(name='pymantic',
           'lxml',
           'mock_http',
           'pytz',
+          'simplejson',
           ],
       entry_points="""
       # -*- Entry points: -*-
