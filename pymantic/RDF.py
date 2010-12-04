@@ -403,7 +403,10 @@ class Resource(object):
             if (obj, cls.resolve('rdf:type'), None) not in graph:
                 return Resource(graph, obj)
         types = frozenset(graph.objects(obj, cls.resolve('rdf:type')))
-        python_classes = tuple(cls.__metaclass__._classes[t] for t in types)
+        python_classes = tuple(cls.__metaclass__._classes[t] for t in types if\
+                               t in cls.__metaclass__._classes)
+        print types
+        print python_classes
         if len(python_classes) == 0:
             return Resource(graph, obj)
         elif len(python_classes) == 1:

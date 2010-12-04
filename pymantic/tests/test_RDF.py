@@ -8,7 +8,7 @@ import rdflib.namespace
 import pymantic.RDF
 import pymantic.util
 
-from rdflib.namespace import XSD
+from rdflib.namespace import XSD, RDF
 
 class TestRDF(unittest.TestCase):
     def tearDown(self):
@@ -706,3 +706,23 @@ class TestRDF(unittest.TestCase):
         self.assertFalse(offering1['gr:name'])
         self.assertFalse(frozenset(offering1['gr:description']))
         self.assertEqual(offering2['gr:name'], rdflib.Literal('Bar', lang='en'))
+    
+    def testUnboundClass(self):
+        """Test classifying objects with one or more unbound classes."""
+        @pymantic.RDF.register_class('gr:Offering')
+        class Offering(pymantic.RDF.Resource):
+            namespaces = {
+                'gr': 'http://purl.org/goodrelations/',
+            }
+        
+        graph = rdflib.ConjunctiveGraph()
+        funky_class = rdflib.URIRef('http://example.com/AFunkyClass')
+        funky_subject = rdflib.URIRef('http://example.com/aFunkyResource')
+        
+        offering1 = Offering.new(graph, 'http://example.com/offering1')
+        graph.add((offering1.subject, RDF['type'], funky_class))
+        self.assertEqual(type(pymantic.RDF.Resource.classify(graph, offering1.subject)),
+                         Offering)
+        graph.add((funky_subject, RDF['type'], funky_class))
+        self.assertEqual(type(pymantic.RDF.Resource.classify(graph, funky_subject)),
+                         pymantic.RDF.Resource)
