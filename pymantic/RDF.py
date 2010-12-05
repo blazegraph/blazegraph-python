@@ -195,6 +195,8 @@ class Resource(object):
     @classmethod
     def new(cls, graph, subject = None):
         """Create a new instance of this Resource."""
+        for prefix, namespace in cls.namespaces.iteritems():
+            graph.bind(prefix, namespace)
         if subject is None:
             subject = rdflib.BNode()
         if not isinstance(subject, rdflib.term.Node):
