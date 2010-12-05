@@ -193,8 +193,10 @@ class Resource(object):
         self.subject = subject
     
     @classmethod
-    def new(cls, graph, subject):
+    def new(cls, graph, subject = None):
         """Create a new instance of this Resource."""
+        if subject is None:
+            subject = rdflib.BNode()
         if not isinstance(subject, rdflib.term.Node):
             subject = rdflib.URIRef(subject)
         for rdf_class in cls.rdf_classes:
