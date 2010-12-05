@@ -18,6 +18,7 @@ content_type_to_rdflib_format = {
     'text/x-nquads': 'nq',
     'application/rdf+xml': 'xml',
     'text/turtle': 'turtle',
+    'text/rdf+n3': 'n3',
 }
 
 rdflib_format_to_content_type = dict((value, key) for key, value in\
