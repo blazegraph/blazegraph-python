@@ -233,6 +233,12 @@ class Resource(object):
     def __hash__(self):
         return hash(self.subject)
     
+    def bare_literals(self, predicate):
+        """Objects for a predicate that are language-less, datatype-less Literals."""
+        return [obj for obj in self.graph.objects(self.subject, predicate) if\
+                hasattr(obj, 'language') and obj.language is None and\
+                hasattr(obj, 'datatype') and obj.datatype is None]
+    
     def objects_by_lang(self, predicate, lang=None):
         """Objects for a predicate that match a specified language or, if
         language is None, have a language specified."""
@@ -451,10 +457,10 @@ class Resource(object):
             objects = self.objects(predicate)
         elif lang:
             objects = self.objects_by_lang(predicate, lang)
-            if not isinstance(key, tuple):
+            if not isinstance(key, tuple) and not objects:
                 objects += self.objects_by_type(predicate)
-            if not objects:
                 objects += self.objects_by_datatype(predicate)
+                objects += self.bare_literals(predicate)
         elif datatype:
             objects = self.objects_by_datatype(predicate, datatype)
             if predicate not in self.scalars:

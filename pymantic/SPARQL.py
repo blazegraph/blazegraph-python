@@ -64,6 +64,8 @@ class SPARQLServer(object):
                 headers={
                     "Accept": ','.join(self.acceptable_sparql_responses),
             })
+        if response['status'] == '204':
+            return True
         if response['status'] != '200':
             raise SPARQLQueryException('%s: %s' % (response, content))
         if response['content-type'].startswith('application/rdf+xml'):

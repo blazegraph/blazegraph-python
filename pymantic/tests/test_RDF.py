@@ -256,7 +256,7 @@ class TestRDF(unittest.TestCase):
         del r['rdfs:label']
         self.assertEqual(r['rdfs:label'], None)
         self.assertEqual(r['rdfs:label', 'en'], None)
-        self.assertEqual(r['rdfs:label', 'fr'], rdflib.term.Literal('bar', lang='fr'))        
+        self.assertEqual(r['rdfs:label', 'fr'], rdflib.term.Literal('bar', lang='fr'))
     
     def testGetSetDelPredicateDatatype(self):
         """Test getting, setting and deleting a multi-value predicate with an explicit datatype."""
