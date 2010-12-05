@@ -279,12 +279,16 @@ class Resource(object):
         """All objects for a predicate."""
         return [obj for obj in self.graph.objects(self.subject, predicate)]
     
-    def object_of(self, predicate):
+    def object_of(self, predicate = None):
         """All subjects for which this resource is an object for the given
         predicate."""
-        predicate = self.resolve(predicate)
-        for subject in self.graph.subjects(predicate, self.subject):
-            yield self.classify(self.graph, subject)
+        if predicate is None:
+            for subject, predicate in self.graph.subject_objects(self.subject):
+                yield (self.classify(self.graph, subject), predicate)
+        else:
+            predicate = self.resolve(predicate)
+            for value in self.graph.subjects(predicate, self.subject):
+                yield self.classify(self.graph, subject)
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
@@ -511,6 +515,16 @@ class Resource(object):
                    self.objects_by_type(predicate)
         elif rdf_class:
             return self.objects_by_type(predicate, rdf_class)
+    
+    def copy(self, target_subject):
+        """Create copies of all triples with this resource as their subject
+        with the target subject as their subject. Returns a classified version
+        of the target subject."""
+        if not isinstance(target_subject, rdflib.term.Node):
+            target_subject = rdflib.URIRef(target_subject)
+        for predicate, obj in self.graph.predicate_objects(self.subject):
+            self.graph.add((target_subject, predicate, obj))
+        return self.classify(self.graph, target_subject)
 
 def literalize(graph, value, lang, datatype):
     """Convert either a value or a sequence of values to either a Literal or
