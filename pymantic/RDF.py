@@ -310,6 +310,7 @@ class Resource(object):
     
     def __setitem__(self, key, value):
         """Sets objects for predicates for this subject by key dictionary-style.
+        Returns 'self', for easy chaining.
         
         1) Setting a predicate without a filter replaces the set of all objects
            for that predicate. The exception is assigning a Literal object with
@@ -351,6 +352,8 @@ class Resource(object):
                 self.graph.add((self.subject, predicate, value.subject))
             else:
                 self.graph.add((self.subject, predicate, value))
+        
+        return self
     
     # Delete item
     
