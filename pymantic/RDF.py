@@ -288,7 +288,7 @@ class Resource(object):
         else:
             predicate = self.resolve(predicate)
             for value in self.graph.subjects(predicate, self.subject):
-                yield self.classify(self.graph, subject)
+                yield self.classify(self.graph, value)
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
