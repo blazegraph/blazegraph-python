@@ -3,7 +3,7 @@ import unittest
 
 import mock_http
 
-from pymantic.SPARQL import SPARQLServer, SPARQLQueryException
+from pymantic.sparql import SPARQLServer, SPARQLQueryException
 
 class TestSparql(unittest.TestCase):
     def setUp(self):
