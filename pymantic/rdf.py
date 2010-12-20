@@ -76,6 +76,11 @@ def parse_curie(curie, namespaces):
     else:
         raise ValueError('Could not parse CURIE prefix %s from namespaces %s' % (prefix, namespaces))
 
+def parse_curies(curies, namespaces):
+    """Parse multiple CURIEs at once."""
+    for curie in curies:
+        yield parse_curie(curie, namespaces)
+
 def to_curie(uri, namespaces, seperator=":", explicit=False):
     """Converts a URI to a CURIE using the prefixes defined in namespaces. If
     there is no matching prefix, return the URI unchanged.
