@@ -1,5 +1,8 @@
 import collections
 from operator import itemgetter
+from BTrees.IIBTree import IIBTree
+from BTrees.IOBTree import IOSet
+from BTrees.OOBTree import *
 
 Triple = collections.namedtuple('Triple', 'subject predicate object')
 Quad = collections.namedtuple('Quad', 'graph subject predicate object')
@@ -42,3 +45,12 @@ class Literal(tuple):
     value = property(itemgetter(0))
     language = property(itemgetter(1))
     datatype = property(itemgetter(2))
+
+class TripleGraph(object):
+    
+    def add(self, triple):
+        pass
+    
+    def __contains__(self, item):
+        pass
+    
