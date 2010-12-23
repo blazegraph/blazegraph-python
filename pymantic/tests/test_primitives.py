@@ -13,3 +13,10 @@ def test_simple_remove():
     g.add(t)
     g.remove(t)
     assert t not in g
+
+def test_match_pattern():
+    t = Triple("http://example.com", "http://purl.org/dc/terms/issued","Never!")
+    g = TripleGraph()
+    g.add(t)
+    matches = g.match(Triple("http://example.com", None, None))
+    assert t in matches
