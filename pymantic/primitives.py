@@ -48,9 +48,12 @@ class Literal(tuple):
 
 class TripleGraph(object):
     
+    def __init__(self):
+        self._triples = OOSet()
+    
     def add(self, triple):
-        pass
+        self._triples.insert(triple)
     
     def __contains__(self, item):
-        pass
+        return self._triples.has_key(item)
     
