@@ -53,6 +53,9 @@ class TripleGraph(object):
     
     def add(self, triple):
         self._triples.insert(triple)
+        
+    def remove(self, triple):
+        self._triples.remove(triple)
     
     def __contains__(self, item):
         return self._triples.has_key(item)
