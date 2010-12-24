@@ -64,14 +64,23 @@ class TripleGraph(object):
     def __init__(self):
         self._triples = OOTreeSet()
         self._spo = ChainingBTree()
+        self._pos = ChainingBTree()
+        self._ops = ChainingBTree()
+        self._sop = ChainingBTree()
     
     def add(self, triple):
         self._triples.insert(triple)
         self._spo[triple.subject][triple.predicate][triple.object] = triple
+        self._pos[triple.predicate][triple.object][triple.subject] = triple
+        self._ops[triple.object][triple.predicate][triple.subject] = triple
+        self._sop[triple.subject][triple.object][triple.predicate] = triple
         
     def remove(self, triple):
         self._triples.remove(triple)
         del self._spo[triple.subject][triple.predicate][triple.object]
+        del self._pos[triple.predicate][triple.object][triple.subject]
+        del self._ops[triple.object][triple.predicate][triple.subject]
+        del self._sop[triple.subject][triple.object][triple.predicate]
         
     def match(self, pattern):
         if pattern.subject:
@@ -79,19 +88,30 @@ class TripleGraph(object):
                 if pattern.object: # s, p, o
                     if pattern in self:
                         yield pattern
-                    else: # s, p, ?var
-                        for triple in self._spo[pattern.subject][pattern.predicate].values():
-                            yield triple
+                else: # s, p, ?var
+                    for triple in self._spo[pattern.subject][pattern.predicate].values():
+                        yield triple
             else: # s, ?var, ???
                 if pattern.object: # s, ?var, o
-                    for predicate in self._spo[pattern.graph][pattern.subject]:
-                        for triple in self._ops[pattern.object][predicate][pattern.subject].values():
-                            yield triple
+                    for triple in self._sop[pattern.subject][pattern.object].values():
+                        yield triple
                 else: # s, ?var, ?var
                     for predicate in self._spo[pattern.subject]:
                         for triple in self._spo[pattern.subject][predicate].values():
                             yield triple
-    
+        elif pattern.predicate: # ?var, p, ???
+            if pattern.object: # ?var, p, o
+                for triple in self._ops[pattern.object][pattern.predicate].values():
+                    yield triple
+            else: # ?var, p, ?var
+                for object in self._pos[pattern.predicate]:
+                    for triple in self._pos[pattern.predicate][object].values():
+                        yield triple
+        elif pattern.object: # ?var, ?var, o
+            for predicate in self._ops[pattern.object]:
+                for triple in self._ops[pattern.object][predicate].values():
+                    yield triple
+
     def __contains__(self, item):
         return self._triples.has_key(item)
     
