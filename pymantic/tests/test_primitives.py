@@ -87,3 +87,34 @@ def test_remove_quad():
     ds.add(q)
     ds.remove(q)
     assert q not in ds
+
+def test_ds_len():
+    n = 10
+    ds = Dataset()
+    for q in generate_quads(n):
+        ds.add(q)
+    assert len(ds) == 10
+    
+def test_match_ds_sVV_pattern():
+    q = Quad("http://example.com/graph", "http://example.com", 
+             "http://purl.org/dc/terms/issued","Never!")
+    ds = Dataset()
+    ds.add(q)
+    matches = ds.match(Triple("http://example.com", None, None))
+    assert q in matches
+
+    
+def generate_quads(n):
+    for i in range(n):
+        yield Quad("http://example/graph/"+str(random.randint(1,1000)),
+                   "http://example/" + str(random.randint(1,1000)),
+                   "http://purl.org/dc/terms/" + str(random.randint(1,1000)),
+                   random.randint(1,1000))
+        
+def test_10000_quads():
+    n = 10000
+    ds = Dataset()
+    for q in generate_quads(n):
+        ds.add(q)
+    assert len(ds) > n * .9
+    #matches = g.match_quad_patern(Quad("http://example/graph/42","http://example.com/42", None, None))

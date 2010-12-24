@@ -8,7 +8,7 @@ def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
 
 def t_as_q(graph, triple):
-    pass
+    return Quad(graph, triple.subject, triple.predicate, triple.object)
 
 class Literal(tuple):
     """Literal(value, language, datatype)""" 
@@ -130,11 +130,25 @@ class Dataset(object):
     def remove_graph(self, graph_or_uri):
         pass
     
+    @property
     def graphs(self):
-        pass
+        return self._graphs.values()
     
-    def match(self, quad):
-        pass
+    def match(self, item):
+        if hasattr(item, "graph"):
+            quad = item
+            print quad
+            matches = self._graphs[quad.graph].match(q_as_t(quad))
+            for match in matches:
+                yield t_as_q(quad.graph, match)
+        else:
+            triple = item
+            for graph_uri, graph in self._graphs.iteritems():
+                for match in graph.match(triple):
+                    yield t_as_q(graph_uri, match)
+    
+    def __len__(self):
+        return sum(len(g) for g in self.graphs)
     
     def __contains__(self, item):
         if hasattr(item, "graph"):
