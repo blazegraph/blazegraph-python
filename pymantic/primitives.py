@@ -106,6 +106,9 @@ class TripleGraph(object):
             for predicate in self._ops[pattern.object]:
                 for triple in self._ops[pattern.object][predicate].values():
                     yield triple
+        else:
+            for triple in self._triples:
+                yield triple
 
     def __contains__(self, item):
         return item in self._triples
@@ -135,9 +138,8 @@ class Dataset(object):
         return self._graphs.values()
     
     def match(self, item):
-        if hasattr(item, "graph"):
+        if hasattr(item, "graph") and item.graph:
             quad = item
-            print quad
             matches = self._graphs[quad.graph].match(q_as_t(quad))
             for match in matches:
                 yield t_as_q(quad.graph, match)

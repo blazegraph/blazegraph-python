@@ -14,6 +14,13 @@ def test_simple_remove():
     g.add(t)
     g.remove(t)
     assert t not in g
+    
+def test_match_VVV_pattern():
+    t = Triple("http://example.com", "http://purl.org/dc/terms/issued","Never!")
+    g = TripleGraph()
+    g.add(t)
+    matches = g.match(Triple(None, None, None))
+    assert t in matches
 
 def test_match_sVV_pattern():
     t = Triple("http://example.com", "http://purl.org/dc/terms/issued","Never!")
@@ -101,6 +108,14 @@ def test_match_ds_sVV_pattern():
     ds = Dataset()
     ds.add(q)
     matches = ds.match(Triple("http://example.com", None, None))
+    assert q in matches
+    
+def test_match_ds_quad_pattern():
+    q = Quad("http://example.com/graph", "http://example.com", 
+             "http://purl.org/dc/terms/issued","Never!")
+    ds = Dataset()
+    ds.add(q)
+    matches = ds.match(Quad("http://example.com/graph", None ,None, None))
     assert q in matches
 
     
