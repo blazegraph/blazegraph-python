@@ -1,6 +1,5 @@
 import collections
 from operator import itemgetter
-from BTrees.OOBTree import *
 
 Triple = collections.namedtuple('Triple', 'subject predicate object')
 Quad = collections.namedtuple('Quad', 'graph subject predicate object')
@@ -44,31 +43,22 @@ class Literal(tuple):
     language = property(itemgetter(1))
     datatype = property(itemgetter(2))
     
-class ChainingBTree(OOBTree):
-    def __getitem__(self, key):
-        try:
-            return OOBTree.__getitem__(self, key)
-        except KeyError:
-            return self.__missing__(key)
-    def __missing__(self, key):
-        self[key] = value = ChainingBTree()
-        return value
-    def __reduce__(self):
-        args = ChainingBTree(),
-        return type(self), args, None, None, self.items()
+from collections import defaultdict
+def Index():
+    return defaultdict(Index)
     
 class TripleGraph(object):
     
     def __init__(self, graph_uri=None):
         self._graph_uri = graph_uri
-        self._triples = OOTreeSet()
-        self._spo = ChainingBTree()
-        self._pos = ChainingBTree()
-        self._ops = ChainingBTree()
-        self._sop = ChainingBTree()
+        self._triples = set()
+        self._spo = Index()
+        self._pos = Index()
+        self._ops = Index()
+        self._sop = Index()
     
     def add(self, triple):
-        self._triples.insert(triple)
+        self._triples.add(triple)
         self._spo[triple.subject][triple.predicate][triple.object] = triple
         self._pos[triple.predicate][triple.object][triple.subject] = triple
         self._ops[triple.object][triple.predicate][triple.subject] = triple
@@ -112,7 +102,10 @@ class TripleGraph(object):
                     yield triple
 
     def __contains__(self, item):
-        return self._triples.has_key(item)
+        return item in self._triples
+    
+    def __len__(self):
+        return len(self._triples)
     
 class Dataset(object):
     

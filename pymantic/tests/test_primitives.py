@@ -63,10 +63,12 @@ def generate_triples(n=10):
                    "http://example/terms/" + str(random.randint(1,1000)),
                    random.randint(1,1000))
 
-def test_1000_triples():
+def test_10000_triples():
+    n = 10000
     g = TripleGraph()
-    for t in generate_triples(1000):
+    for t in generate_triples(n):
         g.add(t)
+    assert len(g) > n * .9
     matches = g.match(Triple("http://example.com/42", None, None))
     matches = g.match(Triple(None, "http://example/terms/42", None))
     matches = g.match(Triple(None, None, 42))
