@@ -56,12 +56,16 @@ def Index():
 class TripleGraph(object):
     
     def __init__(self, graph_uri=None):
-        self._graph_uri = graph_uri
+        self._uri = graph_uri
         self._triples = set()
         self._spo = Index()
         self._pos = Index()
         self._ops = Index()
         self._sop = Index()
+        
+    @property
+    def uri(self):
+        return self._uri
     
     def add(self, triple):
         self._triples.add(triple)
@@ -84,27 +88,27 @@ class TripleGraph(object):
                     if pattern in self:
                         yield pattern
                 else: # s, p, ?var
-                    for triple in self._spo[pattern.subject][pattern.predicate].values():
+                    for triple in self._spo[pattern.subject][pattern.predicate].itervalues():
                         yield triple
             else: # s, ?var, ???
                 if pattern.object: # s, ?var, o
-                    for triple in self._sop[pattern.subject][pattern.object].values():
+                    for triple in self._sop[pattern.subject][pattern.object].itervalues():
                         yield triple
                 else: # s, ?var, ?var
                     for predicate in self._spo[pattern.subject]:
-                        for triple in self._spo[pattern.subject][predicate].values():
+                        for triple in self._spo[pattern.subject][predicate].itervalues():
                             yield triple
         elif pattern.predicate: # ?var, p, ???
             if pattern.object: # ?var, p, o
-                for triple in self._ops[pattern.object][pattern.predicate].values():
+                for triple in self._ops[pattern.object][pattern.predicate].itervalues():
                     yield triple
             else: # ?var, p, ?var
                 for object in self._pos[pattern.predicate]:
-                    for triple in self._pos[pattern.predicate][object].values():
+                    for triple in self._pos[pattern.predicate][object].itervalues():
                         yield triple
         elif pattern.object: # ?var, ?var, o
             for predicate in self._ops[pattern.object]:
-                for triple in self._ops[pattern.object][predicate].values():
+                for triple in self._ops[pattern.object][predicate].itervalues():
                     yield triple
         else:
             for triple in self._triples:
@@ -127,8 +131,8 @@ class Dataset(object):
     def remove(self, quad):
         self._graphs[quad.graph].remove(q_as_t(quad))
     
-    def add_graph(self, graph_or_uri):
-        pass
+    def add_graph(self, graph):
+        self._graphs[graph.uri] = graph
     
     def remove_graph(self, graph_or_uri):
         pass
@@ -158,6 +162,6 @@ class Dataset(object):
                 graph = self._graphs[item.graph]
                 return q_as_t(item) in graph
         else:
-            for graph in self._graphs:
+            for graph in self._graphs.itervalues():
                 if item in graph:
                     return True

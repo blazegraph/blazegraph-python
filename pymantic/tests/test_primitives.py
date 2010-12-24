@@ -117,6 +117,14 @@ def test_match_ds_quad_pattern():
     ds.add(q)
     matches = ds.match(Quad("http://example.com/graph", None ,None, None))
     assert q in matches
+    
+def test_add_graph():
+    t = Triple("http://example.com", "http://purl.org/dc/terms/issued","Never!")
+    g = TripleGraph("http://example.com/graph")
+    g.add(t)
+    ds = Dataset()
+    ds.add_graph(g)
+    assert t in ds
 
     
 def generate_quads(n):
