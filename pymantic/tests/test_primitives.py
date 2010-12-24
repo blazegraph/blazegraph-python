@@ -132,4 +132,4 @@ def test_10000_quads():
     for q in generate_quads(n):
         ds.add(q)
     assert len(ds) > n * .9
-    #matches = g.match_quad_patern(Quad("http://example/graph/42","http://example.com/42", None, None))
+    matches = ds.match(Quad("http://example/graph/42","http://example.com/42", None, None))
