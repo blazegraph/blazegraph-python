@@ -1,7 +1,5 @@
 import collections
 from operator import itemgetter
-from BTrees.IIBTree import IIBTree
-from BTrees.IOBTree import IOSet
 from BTrees.OOBTree import *
 
 Triple = collections.namedtuple('Triple', 'subject predicate object')
