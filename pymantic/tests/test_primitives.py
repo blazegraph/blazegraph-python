@@ -80,3 +80,10 @@ def test_add_quad():
     ds = Dataset()
     ds.add(q)
     assert q in ds
+    
+def test_remove_quad():
+    q = Quad("http://example.com/graph","http://example.com", "http://purl.org/dc/terms/issued","Never!")
+    ds = Dataset()
+    ds.add(q)
+    ds.remove(q)
+    assert q not in ds

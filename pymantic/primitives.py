@@ -122,7 +122,7 @@ class Dataset(object):
         self._graphs[quad.graph].add(q_as_t(quad))
         
     def remove(self, quad):
-        pass
+        self._graphs[quad.graph].remove(q_as_t(quad))
     
     def add_graph(self, graph_or_uri):
         pass
@@ -135,7 +135,6 @@ class Dataset(object):
     
     def match(self, quad):
         pass
-    
     
     def __contains__(self, item):
         if hasattr(item, "graph"):
