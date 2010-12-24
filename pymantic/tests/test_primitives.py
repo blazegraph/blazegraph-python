@@ -72,3 +72,11 @@ def test_10000_triples():
     matches = g.match(Triple("http://example.com/42", None, None))
     matches = g.match(Triple(None, "http://example/terms/42", None))
     matches = g.match(Triple(None, None, 42))
+    
+# Dataset Tests
+
+def test_add_quad():
+    q = Quad("http://example.com/graph","http://example.com", "http://purl.org/dc/terms/issued","Never!")
+    ds = Dataset()
+    ds.add(q)
+    assert q in ds

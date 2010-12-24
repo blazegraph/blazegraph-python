@@ -4,6 +4,12 @@ from operator import itemgetter
 Triple = collections.namedtuple('Triple', 'subject predicate object')
 Quad = collections.namedtuple('Quad', 'graph subject predicate object')
 
+def q_as_t(quad):
+    return Triple(quad.subject, quad.predicate, quad.object)
+
+def t_as_q(graph, triple):
+    pass
+
 class Literal(tuple):
     """Literal(value, language, datatype)""" 
 
@@ -109,8 +115,11 @@ class TripleGraph(object):
     
 class Dataset(object):
     
+    def __init__(self):
+        self._graphs = defaultdict(TripleGraph)
+    
     def add(self, quad):
-        pass
+        self._graphs[quad.graph].add(Triple(quad.subject, quad.predicate, quad.object))
         
     def remove(self, quad):
         pass
@@ -128,4 +137,13 @@ class Dataset(object):
         pass
     
     
-    
+    def __contains__(self, item):
+        if hasattr(item, "graph"):
+            if item.graph in self._graphs:
+                graph = self._graphs[item.graph]
+                triple = Triple(item.subject, item.predicate, item.object)
+                return triple in graph
+        else:
+            for graph in self._graphs:
+                if item in graph:
+                    return True
