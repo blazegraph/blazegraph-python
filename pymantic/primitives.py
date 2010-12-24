@@ -56,10 +56,11 @@ class ChainingBTree(OOBTree):
     def __reduce__(self):
         args = ChainingBTree(),
         return type(self), args, None, None, self.items()
-
+    
 class TripleGraph(object):
     
-    def __init__(self):
+    def __init__(self, graph_uri=None):
+        self._graph_uri = graph_uri
         self._triples = OOTreeSet()
         self._spo = ChainingBTree()
         self._pos = ChainingBTree()
@@ -112,4 +113,26 @@ class TripleGraph(object):
 
     def __contains__(self, item):
         return self._triples.has_key(item)
+    
+class Dataset(object):
+    
+    def add(self, quad):
+        pass
+        
+    def remove(self, quad):
+        pass
+    
+    def add_graph(self, graph_or_uri):
+        pass
+    
+    def remove_graph(self, graph_or_uri):
+        pass
+    
+    def graphs(self):
+        pass
+    
+    def match(self, quad):
+        pass
+    
+    
     
