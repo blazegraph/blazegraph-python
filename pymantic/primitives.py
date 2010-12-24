@@ -119,7 +119,7 @@ class Dataset(object):
         self._graphs = defaultdict(TripleGraph)
     
     def add(self, quad):
-        self._graphs[quad.graph].add(Triple(quad.subject, quad.predicate, quad.object))
+        self._graphs[quad.graph].add(q_as_t(quad))
         
     def remove(self, quad):
         pass
@@ -141,8 +141,7 @@ class Dataset(object):
         if hasattr(item, "graph"):
             if item.graph in self._graphs:
                 graph = self._graphs[item.graph]
-                triple = Triple(item.subject, item.predicate, item.object)
-                return triple in graph
+                return q_as_t(item) in graph
         else:
             for graph in self._graphs:
                 if item in graph:
