@@ -49,7 +49,7 @@ class Literal(tuple):
     language = property(itemgetter(1))
     datatype = property(itemgetter(2))
 
-class URI(str):
+class URI(unicode):
     def __repr__(self):
         return 'URI(' + super(URI, self).__repr__() + ')'
 
