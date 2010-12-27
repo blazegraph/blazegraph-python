@@ -131,8 +131,12 @@ class Dataset(object):
     def remove(self, quad):
         self._graphs[quad.graph].remove(q_as_t(quad))
     
-    def add_graph(self, graph):
-        self._graphs[graph.uri] = graph
+    def add_graph(self, graph, named=None):
+        name = named or graph.uri
+        if name:
+            self._graphs[graph.uri] = graph
+        else:
+            raise ValueError("Graph must be named")
     
     def remove_graph(self, graph_or_uri):
         pass
