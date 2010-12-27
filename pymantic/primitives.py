@@ -48,6 +48,14 @@ class Literal(tuple):
     value = property(itemgetter(0))
     language = property(itemgetter(1))
     datatype = property(itemgetter(2))
+
+class URI(str):
+    def __repr__(self):
+        return 'URI(' + super(URI, self).__repr__() + ')'
+
+class BNode(object):
+    def __repr__(self):
+        return 'BNode()'
     
 from collections import defaultdict
 def Index():
