@@ -48,10 +48,15 @@ class Literal(tuple):
     value = property(itemgetter(0))
     language = property(itemgetter(1))
     datatype = property(itemgetter(2))
+    
+    interfaceName = "Literal"
 
-class URI(unicode):
+class NamedNode(unicode):
+    
+    interfaceName = "NamedNode"
+    
     def __repr__(self):
-        return 'URI(' + super(URI, self).__repr__() + ')'
+        return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
 
 class BNode(object):
     def __repr__(self):
