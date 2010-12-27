@@ -55,12 +55,21 @@ class NamedNode(unicode):
     
     interfaceName = "NamedNode"
     
+    @property
+    def value(self):
+        return self
+    
     def __repr__(self):
         return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
 
-class BNode(object):
+class BlankNode(object):
+
+    @property
+    def value(self):
+        return id(self)
+    
     def __repr__(self):
-        return 'BNode()'
+        return 'BlankNode()'
     
 from collections import defaultdict
 def Index():

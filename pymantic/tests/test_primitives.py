@@ -147,3 +147,8 @@ def test_10000_quads():
 def test_interfaceName():
     assert Literal("Bob", "en").interfaceName == "Literal"
     assert NamedNode().interfaceName == "NamedNode"
+    
+def test_BlankNode_id():
+    b1 = BlankNode()
+    b2 = BlankNode()
+    assert b1.value != b2.value
