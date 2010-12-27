@@ -7,62 +7,62 @@ def en(s):
 
 def test_simple_add():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     assert t in g
     
 def test_simple_remove():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     g.remove(t)
     assert t not in g
     
 def test_match_VVV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(None, None, None))
     assert t in matches
 
 def test_match_sVV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(NamedNode("http://example.com"), None, None))
     assert t in matches
     
 def test_match_sVo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(NamedNode("http://example.com"), None, en("Never!")))
     assert t in matches
     
 def test_match_spV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"), None))
     assert t in matches
     
 def test_match_Vpo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(None, NamedNode("http://purl.org/dc/terms/issued"), en("Never!")))
     assert t in matches
     
 def test_match_VVo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(None, None, en("Never!")))
     assert t in matches
 
 def test_match_VpV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
-    g = TripleGraph()
+    g = Graph()
     g.add(t)
     matches = g.match(Triple(None, NamedNode("http://purl.org/dc/terms/issued"), None))
     assert t in matches
@@ -75,7 +75,7 @@ def generate_triples(n=10):
 
 def test_10000_triples():
     n = 10000
-    g = TripleGraph()
+    g = Graph()
     for t in generate_triples(n):
         g.add(t)
     assert len(g) > n * .9
@@ -123,7 +123,7 @@ def test_match_ds_quad_pattern():
     
 def test_add_graph():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"))
-    g = TripleGraph("http://example.com/graph")
+    g = Graph("http://example.com/graph")
     g.add(t)
     ds = Dataset()
     ds.add_graph(g)

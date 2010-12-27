@@ -75,7 +75,7 @@ from collections import defaultdict
 def Index():
     return defaultdict(Index)
     
-class TripleGraph(object):
+class Graph(object):
     
     def __init__(self, graph_uri=None):
         self._uri = graph_uri
@@ -145,7 +145,7 @@ class TripleGraph(object):
 class Dataset(object):
     
     def __init__(self):
-        self._graphs = defaultdict(TripleGraph)
+        self._graphs = defaultdict(Graph)
     
     def add(self, quad):
         self._graphs[quad.graph].add(q_as_t(quad))
