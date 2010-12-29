@@ -77,14 +77,14 @@ def parse_ntriples(stream, graph):
         else:
             return Literal(value = values[0])
     
-    def make_uri(values):
-        from pymantic.primitives import URI
-        return URI(values[0])
+    def make_named_node(values):
+        from pymantic.primitives import NamedNode
+        return NamedNode(values[0])
     
-    def make_bnode(values):
-        from pymantic.primitives import BNode
+    def make_blank_node(values):
+        from pymantic.primitives import BlankNode
         if values[0] not in bnodes:
-            bnodes[values[0]] = BNode()
+            bnodes[values[0]] = BlankNode()
         return bnodes[values[0]]
     
     def make_triple(values):
@@ -97,11 +97,11 @@ def parse_ntriples(stream, graph):
     name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
     absoluteURI = Regexp(r'[^:]+:[^\s"<>]+')
     language = Regexp(r'[a-z]+(?:-[a-z0-9]+)*')
-    uriref = ~Literal('<') & absoluteURI & ~Literal('>') > make_uri
+    uriref = ~Literal('<') & absoluteURI & ~Literal('>') > make_named_node
     datatypeString = ~Literal('"') & string & ~Literal('"') & ~Literal('^^') & uriref > make_datatype_literal
     langString = ~Literal('"') & string & ~Literal('"') & Optional(~Literal('@') & language) > make_language_literal
     literal = datatypeString | langString
-    nodeID = ~Literal('_:') & name > make_bnode
+    nodeID = ~Literal('_:') & name > make_blank_node
     object_ = uriref | nodeID | literal
     predicate = uriref
     subject = uriref | nodeID
