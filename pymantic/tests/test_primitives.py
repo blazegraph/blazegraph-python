@@ -82,6 +82,18 @@ def test_10000_triples():
     matches = g.match(Triple(NamedNode("http://example.com/42"), None, None))
     matches = g.match(Triple(None, NamedNode("http://example/terms/42"), None))
     matches = g.match(Triple(None, None, Literal(42)))
+
+def test_iter_10000_triples():
+    n = 10000
+    g = Graph()
+    triples = set()
+    for t in generate_triples(n):
+        g.add(t)
+        triples.add(t)
+    assert len(g) > n * .9
+    for t in g:
+        triples.remove(t)
+    assert len(triples) == 0
     
 # Dataset Tests
 
@@ -143,7 +155,20 @@ def test_10000_quads():
         ds.add(q)
     assert len(ds) > n * .9
     matches = ds.match(Quad(NamedNode("http://example/graph/42"),NamedNode("http://example.com/42"), None, None))
-    
+
+def test_iter_10000_quads():
+    n = 10000
+    ds = Dataset()
+    quads = set()
+    for q in generate_quads(n):
+        ds.add(q)
+        quads.add(q)
+        print repr(q)
+    assert len(ds) > n * .9
+    for quad in ds:
+        quads.remove(q)
+    assert len(quads) == 0
+
 def test_interfaceName():
     assert Literal("Bob", "en").interfaceName == "Literal"
     assert NamedNode().interfaceName == "NamedNode"

@@ -142,6 +142,10 @@ class Graph(object):
     def __len__(self):
         return len(self._triples)
     
+    def __iter__(self):
+        for triple in self._triples:
+            yield triple
+    
 class Dataset(object):
     
     def __init__(self):
@@ -191,3 +195,8 @@ class Dataset(object):
             for graph in self._graphs.itervalues():
                 if item in graph:
                     return True
+    
+    def __iter__(self):
+        for graph in self._graphs.itervalues():
+            for triple in graph:
+                yield t_as_q(graph, triple)
