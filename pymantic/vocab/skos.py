@@ -15,6 +15,3 @@ class Concept(SKOSResource):
 @register_class("skos:ConceptScheme")
 class ConceptScheme(SKOSResource):
     pass
-
-
-
