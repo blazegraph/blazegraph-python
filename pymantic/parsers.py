@@ -97,7 +97,7 @@ class BaseNParser(object):
         self.string = Regexp(r'[^"\\]*(?:\\.[^"\\]*)*')
         self.name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
         self.absoluteURI = Regexp(r'[^:]+:[^\s"<>]+')
-        self.language = Regexp(r'[a-z]+(?:-[a-z0-9]+)*')
+        self.language = Regexp(r'[a-z]+(?:-[a-zA-Z0-9]+)*')
         self.uriref = ~Literal('<') & self.absoluteURI & ~Literal('>') > self.make_named_node
         self.datatypeString = ~Literal('"') & self.string & ~Literal('"') & ~Literal('^^') & self.uriref > self.make_datatype_literal
         self.langString = ~Literal('"') & self.string & ~Literal('"') & Optional(~Literal('@') & self.language) > self.make_language_literal
