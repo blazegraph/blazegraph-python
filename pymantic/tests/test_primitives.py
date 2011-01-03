@@ -163,10 +163,9 @@ def test_iter_10000_quads():
     for q in generate_quads(n):
         ds.add(q)
         quads.add(q)
-        print repr(q)
     assert len(ds) > n * .9
     for quad in ds:
-        quads.remove(q)
+        quads.remove(quad)
     assert len(quads) == 0
 
 def test_interfaceName():

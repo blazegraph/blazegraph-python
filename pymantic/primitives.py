@@ -7,8 +7,8 @@ Quad = collections.namedtuple('Quad', 'graph subject predicate object')
 def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
 
-def t_as_q(graph, triple):
-    return Quad(graph, triple.subject, triple.predicate, triple.object)
+def t_as_q(graph_name, triple):
+    return Quad(graph_name, triple.subject, triple.predicate, triple.object)
 
 class Literal(tuple):
     """Literal(value, language, datatype)""" 
@@ -74,7 +74,7 @@ class BlankNode(object):
 from collections import defaultdict
 def Index():
     return defaultdict(Index)
-    
+
 class Graph(object):
     
     def __init__(self, graph_uri=None):
@@ -145,13 +145,14 @@ class Graph(object):
     def __iter__(self):
         for triple in self._triples:
             yield triple
-    
+
 class Dataset(object):
     
     def __init__(self):
         self._graphs = defaultdict(Graph)
     
     def add(self, quad):
+        self._graphs[quad.graph]._uri = quad.graph
         self._graphs[quad.graph].add(q_as_t(quad))
         
     def remove(self, quad):
@@ -160,6 +161,7 @@ class Dataset(object):
     def add_graph(self, graph, named=None):
         name = named or graph.uri
         if name:
+            graph._uri = name
             self._graphs[graph.uri] = graph
         else:
             raise ValueError("Graph must be named")
@@ -173,14 +175,14 @@ class Dataset(object):
     
     def match(self, item):
         if hasattr(item, "graph") and item.graph:
-            quad = item
-            matches = self._graphs[quad.graph].match(q_as_t(quad))
+            quad_pattern = item
+            matches = self._graphs[quad_pattern.graph].match(q_as_t(quad_pattern))
             for match in matches:
-                yield t_as_q(quad.graph, match)
+                yield t_as_q(quad_pattern.graph, match)
         else:
-            triple = item
+            triple_pattern = item
             for graph_uri, graph in self._graphs.iteritems():
-                for match in graph.match(triple):
+                for match in graph.match(triple_pattern):
                     yield t_as_q(graph_uri, match)
     
     def __len__(self):
@@ -199,4 +201,4 @@ class Dataset(object):
     def __iter__(self):
         for graph in self._graphs.itervalues():
             for triple in graph:
-                yield t_as_q(graph, triple)
+                yield t_as_q(graph.uri, triple)
