@@ -1,11 +1,11 @@
-__all__ = ['NTripleParser', 'parse_ntriples']
+__all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads',]
 
 from lepl import *
 from threading import local
 
 class BaseNParser(object):
-    """Base parser that establishes common grammar rules used for parsing both
-    n-triples and n-quads."""
+    """Base parser that establishes common grammar rules and interfaces used for
+    parsing both n-triples and n-quads."""
     
     def make_datatype_literal(self, values):
         from pymantic.primitives import Literal
@@ -45,10 +45,27 @@ class BaseNParser(object):
         self.subject = self.uriref | self.nodeID
         self.comment = Literal('#') & Regexp(r'[ -~]*')
     
-    def _prepare_parse(self):
+    def _prepare_parse(self, graph):
         self._call_state.bnodes = {}
+        self._call_state.graph = graph
+        
+    def _cleanup_parse(self):
+        del self._call_state.bnodes
+        del self._call_state.graph
+    
+    def _make_graph(self):
+        raise NotImplementedError()
+    
+    def parse(self, f, graph = None):
+        if graph is None:
+            graph = self._make_graph()
+        self._prepare_parse(graph)
+        self.document.parse_file(f)
+        self._cleanup_parse()
+        
+        return graph
 
-class NTripleParser(BaseNParser):
+class NTriplesParser(BaseNParser):
     def make_triple(self, values):
         from pymantic.primitives import Triple
         triple = Triple(*values)
@@ -61,19 +78,34 @@ class NTripleParser(BaseNParser):
         self.line = Star(Space()) & Optional(~self.triple | ~self.comment) & ~Literal('\n')
         self.document = Star(self.line)
     
-    def _prepare_parse(self, graph):
-        super(NTripleParser, self)._prepare_parse()
-        self._call_state.graph = graph
-    
-    def parse(self, f, graph = None):
-        if graph is None:
-            from pymantic.primitives import Graph
-            graph = Graph()
-        self._prepare_parse(graph)
-        self.document.parse_file(f)
-        
-        return graph
+    def _make_graph(self):
+        from pymantic.primitives import Graph
+        return Graph()
 
 def parse_ntriples(f, graph = None):
-    parser = NTripleParser()
+    parser = NTriplesParser()
+    return parser.parse(f, graph)
+
+class NQuadsParser(BaseNParser):
+    def make_quad(self, values):
+        from pymantic.primitives import Quad
+        quad = Quad(*values)
+        self._call_state.graph.add(quad)
+        return quad
+
+    def __init__(self):
+        super(NTripleParser, self).__init__()
+        self.graph_name = self.uriref
+        self.quad = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) &\
+            self.object_ & ~Plus(Space()) & self.graph_name & ~Star(Space()) &\
+            ~Literal('.') & ~Star(Space()) >= self.make_quad
+        self.line = Star(Space()) & Optional(~self.quad | ~self.comment) & ~Literal('\n')
+        self.document = Star(self.line)
+    
+    def _make_graph(self):
+        from pymantic.primitives import Dataset
+        return Dataset()
+
+def parse_nquads(f, graph = None):
+    parser = NQuadsParser()
     return parser.parse(f, graph)
