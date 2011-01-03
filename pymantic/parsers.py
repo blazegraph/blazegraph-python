@@ -1,7 +1,24 @@
 __all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads',]
 
 from lepl import *
+import re
 from threading import local
+
+unicode_re = re.compile(r'\\u([0-9]{4})')
+
+def nt_unquote(nt_string):
+    """Un-do nt escaping style."""
+    output_string = ''
+    nt_string = nt_string.replace('\\t', u'\u0009')
+    nt_string = nt_string.replace('\\n', u'\u000A')
+    nt_string = nt_string.replace('\\r', u'\u000D')
+    nt_string = nt_string.replace('\\"', u'\u0022')
+    nt_string = nt_string.replace('\\\\', u'\u005C')
+    def chr_match(matchobj):
+        ordinal = matchobj.group(1)
+        return chr(ordinal)
+    nt_string = unicode_re.sub(chr_match, nt_string)
+    return nt_string
 
 class BaseNParser(object):
     """Base parser that establishes common grammar rules and interfaces used for
@@ -14,9 +31,9 @@ class BaseNParser(object):
     def make_language_literal(self, values):
         from pymantic.primitives import Literal
         if len(values) == 2:
-            return Literal(value = values[0], language = values[1])
+            return Literal(value = nt_unquote(values[0]), language = values[1])
         else:
-            return Literal(value = values[0])
+            return Literal(value = nt_unquote(values[0]))
     
     def make_named_node(self, values):
         from pymantic.primitives import NamedNode
@@ -73,7 +90,7 @@ class NTriplesParser(BaseNParser):
         return triple
 
     def __init__(self):
-        super(NTripleParser, self).__init__()
+        super(NTriplesParser, self).__init__()
         self.triple = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) & self.object_ & ~Star(Space()) & ~Literal('.') & ~Star(Space()) >= self.make_triple
         self.line = Star(Space()) & Optional(~self.triple | ~self.comment) & ~Literal('\n')
         self.document = Star(self.line)

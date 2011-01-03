@@ -52,6 +52,7 @@ def nt(node):
         return literal
 
 def unicode_escape(node_string):
+    """Properly escape strings for n-triples and n-quads serialization."""
     output_string = ''
     for char in node_string:
         if char == u'\u0009':
