@@ -6,7 +6,7 @@ from threading import local
 
 unicode_re = re.compile(r'\\u([0-9]{4})')
 
-def nt_unquote(nt_string):
+def nt_unescape(nt_string):
     """Un-do nt escaping style."""
     output_string = ''
     nt_string = nt_string.replace('\\t', u'\u0009')
@@ -31,9 +31,9 @@ class BaseNParser(object):
     def make_language_literal(self, values):
         from pymantic.primitives import Literal
         if len(values) == 2:
-            return Literal(value = nt_unquote(values[0]), language = values[1])
+            return Literal(value = nt_unescape(values[0]), language = values[1])
         else:
-            return Literal(value = nt_unquote(values[0]))
+            return Literal(value = nt_unescape(values[0]))
     
     def make_named_node(self, values):
         from pymantic.primitives import NamedNode
@@ -73,7 +73,7 @@ class BaseNParser(object):
     def _make_graph(self):
         raise NotImplementedError()
     
-    def parse(self, f, graph = None):
+    def parse(self, f, sink = None):
         if graph is None:
             graph = self._make_graph()
         self._prepare_parse(graph)
@@ -98,6 +98,9 @@ class NTriplesParser(BaseNParser):
     def _make_graph(self):
         from pymantic.primitives import Graph
         return Graph()
+    
+    def parse(self, f, graph):
+        return super(NTriplesParser, self).parse(f, graph)
 
 def parse_ntriples(f, graph = None):
     parser = NTriplesParser()
@@ -122,7 +125,10 @@ class NQuadsParser(BaseNParser):
     def _make_graph(self):
         from pymantic.primitives import Dataset
         return Dataset()
+    
+    def parse(self, f, dataset):
+        return super(NQuadsParser, self).parse(f, dataset)
 
-def parse_nquads(f, graph = None):
+def parse_nquads(f, dataset = None):
     parser = NQuadsParser()
-    return parser.parse(f, graph)
+    return parser.parse(f, dataset)
