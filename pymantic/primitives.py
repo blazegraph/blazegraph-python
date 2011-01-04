@@ -1,8 +1,89 @@
 import collections
 from operator import itemgetter
+import urllib
+import urlparse
 
-Triple = collections.namedtuple('Triple', 'subject predicate object')
-Quad = collections.namedtuple('Quad', 'graph subject predicate object')
+class Triple(tuple):
+    'Triple(subject, predicate, object)' 
+
+    __slots__ = () 
+
+    _fields = ('subject', 'predicate', 'object') 
+
+    def __new__(_cls, subject, predicate, object):
+        return _tuple.__new__(_cls, (subject, predicate, object)) 
+
+    @classmethod
+    def _make(cls, iterable, new=tuple.__new__, len=len):
+        'Make a new Triple object from a sequence or iterable'
+        result = new(cls, iterable)
+        if len(result) != 3:
+            raise TypeError('Expected 3 arguments, got %d' % len(result))
+        return result 
+
+    def __repr__(self):
+        return 'Triple(subject=%r, predicate=%r, object=%r)' % self 
+
+    def _asdict(t):
+        'Return a new dict which maps field names to their values'
+        return {'subject': t[0], 'predicate': t[1], 'object': t[2]} 
+
+    def _replace(_self, **kwds):
+        'Return a new Triple object replacing specified fields with new values'
+        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object'), _self))
+        if kwds:
+            raise ValueError('Got unexpected field names: %r' % kwds.keys())
+        return result 
+
+    def __getnewargs__(self):
+        return tuple(self) 
+
+    subject = property(itemgetter(0))
+    predicate = property(itemgetter(1))
+    object = property(itemgetter(2))
+    
+    def __str__(self):
+        pass
+        
+class Quad(tuple):
+    'Quad(graph, subject, predicate, object)' 
+
+    __slots__ = () 
+
+    _fields = ('graph', 'subject', 'predicate', 'object') 
+
+    def __new__(_cls, graph, subject, predicate, object):
+        return _tuple.__new__(_cls, (graph, subject, predicate, object)) 
+
+    @classmethod
+    def _make(cls, iterable, new=tuple.__new__, len=len):
+        'Make a new Quad object from a sequence or iterable'
+        result = new(cls, iterable)
+        if len(result) != 4:
+            raise TypeError('Expected 4 arguments, got %d' % len(result))
+        return result 
+
+    def __repr__(self):
+        return 'Quad(graph=%r, subject=%r, predicate=%r, object=%r)' % self 
+
+    def _asdict(t):
+        'Return a new dict which maps field names to their values'
+        return {'graph': t[0], 'subject': t[1], 'predicate': t[2], 'object': t[3]} 
+
+    def _replace(_self, **kwds):
+        'Return a new Quad object replacing specified fields with new values'
+        result = _self._make(map(kwds.pop, ('graph', 'subject', 'predicate', 'object'), _self))
+        if kwds:
+            raise ValueError('Got unexpected field names: %r' % kwds.keys())
+        return result 
+
+    def __getnewargs__(self):
+        return tuple(self) 
+
+    graph = property(itemgetter(0))
+    subject = property(itemgetter(1))
+    predicate = property(itemgetter(2))
+    object = property(itemgetter(3))
 
 def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
@@ -51,7 +132,7 @@ class Literal(tuple):
     
     interfaceName = "Literal"
 
-class NamedNode(unicode):
+class NamedNode(str):
     
     interfaceName = "NamedNode"
     
@@ -61,6 +142,10 @@ class NamedNode(unicode):
     
     def __repr__(self):
         return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
+    
+    def __str__(self):
+        uriref = '<' + self + '>'
+        return uriref
 
 class BlankNode(object):
 
@@ -143,8 +228,10 @@ class Graph(object):
         return len(self._triples)
     
     def __iter__(self):
-        for triple in self._triples:
-            yield triple
+        return iter(self._triples)
+    
+    def toArray(self):
+        return frozenset(self._triples)
 
 class Dataset(object):
     
@@ -202,3 +289,6 @@ class Dataset(object):
         for graph in self._graphs.itervalues():
             for triple in graph:
                 yield t_as_q(graph.uri, triple)
+    
+    def toArray(self):
+        return frozenset(self)
