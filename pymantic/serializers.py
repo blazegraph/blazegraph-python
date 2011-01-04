@@ -37,21 +37,21 @@ class NotURIError(Exception):
 
 def nt(node):
     if isinstance(node, URIRef):
-        uriref = '<' + unicode_escape(unicode(node)) + '>'
+        uriref = '<' + nt_escape(unicode(node)) + '>'
         if not r_uriref.match(uriref):
             raise NotURIError(uriref)
         return uriref
     if isinstance(node, BNode):
         return '_:' + str(node)
     if isinstance(node, Literal):
-        literal = '"' + unicode_escape(unicode(node)) + '"'
+        literal = '"' + nt_escape(unicode(node)) + '"'
         if node.language is not None:
             literal += '@' + node.language
         elif node.datatype is not None:
             literal += '^^' + nt(node.datatype)
         return literal
 
-def unicode_escape(node_string):
+def nt_escape(node_string):
     """Properly escape strings for n-triples and n-quads serialization."""
     output_string = ''
     for char in node_string:
