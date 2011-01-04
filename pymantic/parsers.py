@@ -152,18 +152,18 @@ class TurtleParser(BaseLeplParser):
                                 Literal(r'\U') & hex_[:8],
                                 Literal(r'\\'))
         character = Or (character_escape,
-                            Regexp(ur'[\u0020-\u005B\u005D-\U0010FFFF]'))
+                            Regexp(ur'[\u0020-\u005B\]-\U0010FFFF]'))
         echaracter = character | Any(r'\t\n\r')
         ucharacter = Or (character_escape,
-                              Regexp(ur'[\u0020-\u003D\u003F-\u005B\u005D-\U0010FFFF]')) | r'\>'
+                         Regexp(ur'[\u0020-\u003D\u003F-\u005B\]-\U0010FFFF]')) | r'\>'
         scharacter = Or (character_escape,
-                              Regexp(ur'[\u0020-\u0021\u0023-\u005B\u005D-\U0010FFFF]')) | r'\"'
+                              Regexp(ur'[\u0020-\u0021\u0023-\u005B\]-\U0010FFFF]')) | r'\"'
         lcharacter = echaracter | '\"' | '\u009' | '\u000A' | '\u000D'
         longString = '"""' &  Star(lcharacter) & '"""'
         string = '"' & Star(scharacter) & '"""'
         quotedString = string | longString
         relativeURI = Star(ucharacter)
-        prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\u000EFFFF]')
+        prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
         nameStartChar = prefixStartChar | "_"
         nameChar = nameStartChar | '-' | Regexp('[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u0203F-\u2040]')
         name = nameStartChar & Star(nameChar)
@@ -197,10 +197,10 @@ class TurtleParser(BaseLeplParser):
         predicateObjectList = verb & objectList & Star(';' & verb & objectList) & Optional(';')
         blank += Or (nodeID, '[]' , '[' & predicateObjectList & ']', collection)
         triples = subject & predicateObjectList
-        base = '@base' & ws[1:] & uriref
-        prefixId = '@prefix' & ws[1:] & Optional(prefixName) & ':' & uriref
+        base = '@base' & Plus(ws) & uriref
+        prefixId = '@prefix' & Plus(ws) & Optional(prefixName) & ':' & Plus(Space()) & uriref
         directive = prefixId | base
-        statement = Or (directive & '.', triples & '.', ws[1:])
+        statement = Or (directive & Plus(Space()) & '.', triples & '.', Plus(ws))
         self.document = Star(statement)
         
 def parse_turtle(f, graph = None):
