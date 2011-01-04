@@ -2,8 +2,10 @@ __all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads',
            'parse_turtle']
 
 from lepl import *
+from lxml import etree
 import re
 from threading import local
+from urlparse import urljoin
 
 unicode_re = re.compile(r'\\u([0-9]{4})')
 
@@ -206,3 +208,47 @@ class TurtleParser(BaseLeplParser):
 def parse_turtle(f, graph = None):
     parser = TurtleParser()
     return parser.parse(f, graph)
+
+scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
+
+class RDFXMLParser(object):
+    def __init__(self):
+        self.namespaces = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',}
+        self._call_state = local()
+        
+    def clark(self, prefix, tag):
+        return '{%s}%s' % (self.namespaces[prefix], tag)
+    
+    def parse(self, f, sink = None):
+        self._call_state.bnodes = {}
+        tree = etree.parse(f)
+        if tree.getroot() != self.clark('rdf', 'RDF'):
+            raise ValueError('Invalid XML document.')
+        for element in tree.getroot():
+            self._handle_resource(element, sink)
+    
+    def _handle_resource(element, sink):
+        from pymantic.primitives import BlankNode, NamedNode
+        subject = self._determine_subject(element)
+        if element.tag != self.clark('rdf', 'Description'):
+            pass
+    
+    def _determine_subject(element):
+        if self.clark('rdf', 'resource') not in element.attrib and\
+           self.clark('rdf', 'nodeID') not in element.attrib and\
+           self.clark('rdf', 'ID') not in element.attrib:
+            return BlankNode()
+        elif self.clark('rdf', 'nodeID') in element.attrib:
+            node_id = element.attrib[self.clark('rdf', 'nodeID')]
+            if node_id not in self._call_state.bnodes:
+                self._call_state.bnodes[node_id] = BlankNode()
+            return self._call_state.bnodes[node_id]
+        elif self.clark('rdf', 'ID') in element.attrib:
+            return NamedNode(element.base + '#' +\
+                             element.attrib[self.clark('rdf', 'ID')])
+        elif self.clark('rdf', 'resource') in element.attrib:
+            resource = element.attrib[self.clark('rdf', 'resource')]
+            if not scheme_re.match(resource):
+                return NamedNode(urljoin(element.base, resource))
+            else:
+                return NamedNode(resource)
