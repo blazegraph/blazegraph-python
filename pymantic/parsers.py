@@ -149,61 +149,67 @@ class TurtleParser(BaseLeplParser):
     
     def __init__(self):
         super(TurtleParser, self).__init__()
+        
+        # White space is significant in the following rules.
         hex_ = Any('0123456789ABCDEF')
-        character_escape = Or( Literal('r\u') & hex_[:4], 
-                                Literal(r'\U') & hex_[:8],
-                                Literal(r'\\'))
-        character = Or (character_escape,
-                            Regexp(ur'[\u0020-\u005B\]-\U0010FFFF]'))
+        character_escape = Or(And(Literal('r\u'), hex_[4]),
+                              And(Literal(r'\U'), hex_[8]),
+                              Literal(r'\\'))
+        character = Or(character_escape,
+                       Regexp(ur'[\u0020-\u005B\]-\U0010FFFF]'))
         echaracter = character | Any(r'\t\n\r')
-        ucharacter = Or (character_escape,
-                         Regexp(ur'[\u0020-\u003D\u003F-\u005B\]-\U0010FFFF]')) | r'\>'
-        scharacter = Or (character_escape,
-                              Regexp(ur'[\u0020-\u0021\u0023-\u005B\]-\U0010FFFF]')) | r'\"'
+        ucharacter = Or(character_escape,
+                        Regexp(ur'[\u0020-\u003D\u003F-\u005B\]-\U0010FFFF]')) | r'\>'
+        scharacter = Or(character_escape,
+                        Regexp(ur'[\u0020-\u0021\u0023-\u005B\]-\U0010FFFF]')) | r'\"'
         lcharacter = echaracter | '\"' | '\u009' | '\u000A' | '\u000D'
-        longString = '"""' &  Star(lcharacter) & '"""'
-        string = '"' & Star(scharacter) & '"""'
+        longString = And('"""', Star(lcharacter), '"""')
+        string = And('"', Star(scharacter), '"')
         quotedString = string | longString
         relativeURI = Star(ucharacter)
-        prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
-        nameStartChar = prefixStartChar | "_"
-        nameChar = nameStartChar | '-' | Regexp('[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u0203F-\u2040]')
-        name = nameStartChar & Star(nameChar)
-        prefixName = prefixStartChar & Star(nameChar)
-        language = Lower()[1:] & Star(Regexp(r'-[a-z0-9]+'))
-        uriref = '<' & relativeURI & '>'
-        qname = Optional(prefixName) & ':' & Optional(name)
-        nodeID = '_:' & name
-        resource = uriref | qname
-        comment = '#' & Star(AnyBut('\u000A\u000D'))
-        ws = Whitespace() or comment
+        uriref = And('<', relativeURI, '>')
         
-        blank = Delayed()
-        integer = Regexp(r'(-|+)?[0-9]+')
-        decimal = Regexp(r'(-|+)?([0-9]+\.[0-9]*|\.([0-9])+|([0-9])+)')
-        exponent = Regexp(r'[eE](-|+)?[0-9]+')
-        boolean = Literal('true') | Literal('false')
-        datatypeString = quotedString & "^^" & resource
-        literal = Or ( quotedString & Optional('@' & language), 
-                       datatypeString,
-                       integer,
-                       decimal,
-                       boolean )
-        object_ = resource | blank | literal
-        predicate = resource
-        subject = resource | blank
-        verb = predicate | 'a'
-        itemList = object_[1:]
-        collection = '(' & Optional(itemList) & ')'
-        objectList = object_ & Star(',' & object_)
-        predicateObjectList = verb & objectList & Star(';' & verb & objectList) & Optional(';')
-        blank += Or (nodeID, '[]' , '[' & predicateObjectList & ']', collection)
-        triples = subject & predicateObjectList
-        base = '@base' & Plus(ws) & uriref
-        prefixId = '@prefix' & Plus(ws) & Optional(prefixName) & ':' & Plus(Space()) & uriref
-        directive = prefixId | base
-        statement = Or (directive & Plus(Space()) & '.', triples & '.', Plus(ws))
-        self.document = Star(statement)
+        # Whie space is not significant in the following rules.
+        with Separator(~Star(Any(' \t\n\r'))):
+            prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
+            nameStartChar = prefixStartChar | "_"
+            nameChar = nameStartChar | '-' | Regexp(ur'[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u203F-\u2040]')
+            name = nameStartChar & nameChar[:]
+            prefixName = prefixStartChar & nameChar[:]
+            language = Lower()[1:] & Regexp(r'-[a-z0-9]+')[:]
+            qname = Optional(prefixName) & ':' & Optional(name)
+            nodeID = '_:' & name
+            resource = uriref | qname
+            comment = '#' & Star(AnyBut('\u000A\u000D'))
+            ws = Whitespace() or comment
+            
+            blank = Delayed()
+            integer = Regexp(r'(-|+)?[0-9]+')
+            decimal = Regexp(r'(-|+)?([0-9]+\.[0-9]*|\.([0-9])+|([0-9])+)')
+            exponent = Regexp(r'[eE](-|+)?[0-9]+')
+            boolean = Literal('true') | Literal('false')
+            datatypeString = quotedString & "^^" & resource
+            literal = Or ( quotedString & Optional('@' & language), 
+                           datatypeString,
+                           integer,
+                           decimal,
+                           boolean )
+            object_ = resource | blank | literal
+            predicate = resource
+            subject = resource | blank
+            verb = predicate | Literal('a')
+            itemList = object_[1:]
+            collection = Literal('(') & Optional(itemList) & Literal(')')
+            objectList = object_ & (Literal(',') & object_)[:]
+            predicateObjectList = verb & objectList & (Literal(';') & verb & objectList)[:] & Optional(';')
+            blank += Or (nodeID, Literal('[') & Literal(']'), collection,
+                         Literal('[') & predicateObjectList & Literal(']'))
+            triples = subject & predicateObjectList
+            base = Literal('@base') & Plus(ws) & uriref
+            prefixId = Literal('@prefix') & Plus(ws) & Optional(prefixName) & ':' & uriref
+            directive = prefixId | base
+            statement = Or (directive & '.', triples & '.', Plus(ws))
+            self.document = Star(statement)
         
 def parse_turtle(f, graph = None):
     parser = TurtleParser()

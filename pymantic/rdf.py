@@ -199,7 +199,7 @@ class Resource(object):
     
     @classmethod
     def new(cls, graph, subject = None):
-        """Create a new instance of this Resource."""
+        """Add type information to the graph for a new instance of this Resource."""
         for prefix, namespace in cls.namespaces.iteritems():
             graph.bind(prefix, namespace)
         if subject is None:
