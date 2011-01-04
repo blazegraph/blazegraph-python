@@ -30,6 +30,7 @@ setup(name='pymantic',
           'mock_http',
           'pytz',
           'simplejson',
+          'lepl'
           ],
       entry_points="""
       # -*- Entry points: -*-

@@ -11,7 +11,7 @@ class Triple(tuple):
     _fields = ('subject', 'predicate', 'object') 
 
     def __new__(_cls, subject, predicate, object):
-        return _tuple.__new__(_cls, (subject, predicate, object)) 
+        return tuple.__new__(_cls, (subject, predicate, object)) 
 
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):
@@ -53,7 +53,7 @@ class Quad(tuple):
     _fields = ('graph', 'subject', 'predicate', 'object') 
 
     def __new__(_cls, graph, subject, predicate, object):
-        return _tuple.__new__(_cls, (graph, subject, predicate, object)) 
+        return tuple.__new__(_cls, (graph, subject, predicate, object)) 
 
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):

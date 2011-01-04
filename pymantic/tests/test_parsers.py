@@ -86,3 +86,19 @@ _:A1 <http://example.com/predicates/2> <http://example.com/objects/1> .
     #assert Triple(NamedNode('http://example.com/objects/2'),
                   #NamedNode('http://example.com/predicates/2'),
                   #NamedNode('http://example.com/objects/1')) in g
+                  
+def test_parse_turtle_example_1():
+    ttl = """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix ex: <http://example.org/stuff/1.0/> .
+
+<http://www.w3.org/TR/rdf-syntax-grammar>
+  dc:title "RDF/XML Syntax Specification (Revised)" ;
+  ex:editor [
+    ex:fullname "Dave Beckett";
+    ex:homePage <http://purl.org/net/dajobe/>
+  ] ."""
+    g = Graph()
+    parse_turtle(StringIO(ttl), g)
+    assert len(g) == 4
+

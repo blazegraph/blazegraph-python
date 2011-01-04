@@ -1,4 +1,5 @@
-__all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads',]
+__all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads', 
+           'parse_turtle']
 
 from lepl import *
 import re
@@ -20,10 +21,12 @@ def nt_unescape(nt_string):
     nt_string = unicode_re.sub(chr_match, nt_string)
     return nt_string
 
-class BaseNParser(object):
-    """Base parser that establishes common grammar rules and interfaces used for
-    parsing both n-triples and n-quads."""
-    
+
+class BaseLeplParser(object):
+
+    def __init__(self):
+        self._call_state = local()
+        
     def make_datatype_literal(self, values):
         from pymantic.primitives import Literal
         return Literal(value = values[0], datatype = values[1])
@@ -45,9 +48,34 @@ class BaseNParser(object):
             self._call_state.bnodes[values[0]] = BlankNode()
         return self._call_state.bnodes[values[0]]
     
-    def __init__(self):
-        self._call_state = local()
+    def _prepare_parse(self, graph):
+        self._call_state.bnodes = {}
+        self._call_state.graph = graph
+        
+    def _cleanup_parse(self):
+        del self._call_state.bnodes
+        del self._call_state.graph
+    
+    def _make_graph(self):
+        raise NotImplementedError()
+    
+    def parse(self, f, sink = None):
+        if sink is None:
+            sink = self._make_graph()
+        self._prepare_parse(sink)
+        self.document.parse_file(f)
+        self._cleanup_parse()
+        
+        return sink
 
+
+class BaseNParser(BaseLeplParser):
+    """Base parser that establishes common grammar rules and interfaces used for
+    parsing both n-triples and n-quads."""
+    
+    
+    def __init__(self):
+        super(BaseNParser, self).__init__()
         self.string = Regexp(r'[^"\\]*(?:\\.[^"\\]*)*')
         self.name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
         self.absoluteURI = Regexp(r'[^:]+:[^\s"<>]+')
@@ -62,25 +90,6 @@ class BaseNParser(object):
         self.subject = self.uriref | self.nodeID
         self.comment = Literal('#') & Regexp(r'[ -~]*')
     
-    def _prepare_parse(self, graph):
-        self._call_state.bnodes = {}
-        self._call_state.graph = graph
-        
-    def _cleanup_parse(self):
-        del self._call_state.bnodes
-        del self._call_state.graph
-    
-    def _make_graph(self):
-        raise NotImplementedError()
-    
-    def parse(self, f, sink = None):
-        if graph is None:
-            graph = self._make_graph()
-        self._prepare_parse(graph)
-        self.document.parse_file(f)
-        self._cleanup_parse()
-        
-        return graph
 
 class NTriplesParser(BaseNParser):
     def make_triple(self, values):
@@ -132,3 +141,24 @@ class NQuadsParser(BaseNParser):
 def parse_nquads(f, dataset = None):
     parser = NQuadsParser()
     return parser.parse(f, dataset)
+
+
+class TurtleParser(BaseLeplParser):
+    
+    def __init__(self):
+        super(TurtleParser, self).__init__()
+        self.hex = Any('0123456789ABCDEF')
+        self.character_escape = Or( Literal('\u') & self.hex[:4], 
+                                Literal('\U') & self.hex[:8],
+                                Literal('\\'))
+        self.character = Or (self.character_escape,
+                            Regexp(ur'[\u0020-\u005B\u005D-\U0010FFFF]'))
+        self.echaracter = self.character | Any(r'\t\n\r')
+        self.ucharacter = Or (self.character_escape,
+                              Regexp(ur'[\u0020-\u003D\u003F-\u005B\u005D-\U0010FFFF]')) | Literal(r'\>')
+        self.scharacter = Or (self.character_escape,
+                              Regexp(ur'[\u0020-\u0021\u0023-\u005B\u005D-\U0010FFFF]')) | Literal(r'\"')
+        
+def parse_turtle(f, graph = None):
+    parser = TurtleParser()
+    return parser.parse(f, graph)
