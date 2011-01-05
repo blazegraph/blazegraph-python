@@ -4,15 +4,15 @@ __all__ = ['en', 'de', 'one_or_none', 'normalize_iri']
 
 import re
 
-import rdflib
+from pymantic.primitives import Literal
 
 def en(value):
     """Returns an RDF literal from the en language for the given value."""
-    return rdflib.Literal(value, lang='en')
+    return Literal(value, language='en')
 
 def de(value):
     """Returns an RDF literal from the de language for the given value."""
-    return rdflib.Literal(value, lang='de')
+    return Literal(value, language='de')
 
 def one_or_none(values):
     """Fetch the first value from values, or None if values is empty. Raises
@@ -23,11 +23,11 @@ def one_or_none(values):
         raise ValueError('Got more than one value.')
     return values[0]
 
-percent_encoding_re = re.compile(r'(%[a-fA-F0-9][a-fA-F0-9])+')
+percent_encoding_re = re.compile(r'(?:%[a-fA-F0-9][a-fA-F0-9])+')
 
 def percent_decode(regmatch):
     encoded = ''
-    for group in regmatch.groups():
+    for group in regmatch.group(0)[1:].split('%'):
         encoded += chr(int(group, 16))
     uni = encoded.decode('utf-8')
     reserved = ["%", ":", "/", "?", "#", "[", "]", "@", "!", "$", "&", "'", "(",\
