@@ -6,6 +6,7 @@ from lxml import etree
 import re
 from threading import local
 from urlparse import urljoin
+from pymantic.util import normalize_iri
 
 unicode_re = re.compile(r'\\u([0-9]{4})')
 
@@ -42,7 +43,7 @@ class BaseLeplParser(object):
     
     def make_named_node(self, values):
         from pymantic.primitives import NamedNode
-        return NamedNode(values[0])
+        return NamedNode(normalize_iri(nt_unescape(values[0])))
     
     def make_blank_node(self, values):
         from pymantic.primitives import BlankNode
@@ -75,12 +76,11 @@ class BaseNParser(BaseLeplParser):
     """Base parser that establishes common grammar rules and interfaces used for
     parsing both n-triples and n-quads."""
     
-    
     def __init__(self):
         super(BaseNParser, self).__init__()
-        self.string = Regexp(r'[^"\\]*(?:\\.[^"\\]*)*')
+        self.string = Regexp(r'(?:[ -!#-[\]-~]|\\[trn"\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*')
         self.name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
-        self.absoluteURI = Regexp(r'[^:]+:[^\s"<>]+')
+        self.absoluteURI = Regexp(r'(?:[ -=?-[\]-~]|\\[trn"\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})+')
         self.language = Regexp(r'[a-z]+(?:-[a-zA-Z0-9]+)*')
         self.uriref = ~Literal('<') & self.absoluteURI & ~Literal('>') > self.make_named_node
         self.datatypeString = ~Literal('"') & self.string & ~Literal('"') & ~Literal('^^') & self.uriref > self.make_datatype_literal
@@ -91,7 +91,6 @@ class BaseNParser(BaseLeplParser):
         self.predicate = self.uriref
         self.subject = self.uriref | self.nodeID
         self.comment = Literal('#') & Regexp(r'[ -~]*')
-    
 
 class NTriplesParser(BaseNParser):
     def make_triple(self, values):
