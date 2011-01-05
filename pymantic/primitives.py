@@ -132,7 +132,7 @@ class Literal(tuple):
     
     interfaceName = "Literal"
 
-class NamedNode(str):
+class NamedNode(unicode):
     
     interfaceName = "NamedNode"
     
@@ -142,10 +142,6 @@ class NamedNode(str):
     
     def __repr__(self):
         return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
-    
-    def __str__(self):
-        uriref = '<' + self + '>'
-        return uriref
 
 class BlankNode(object):
 
