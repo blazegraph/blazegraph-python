@@ -68,9 +68,11 @@ def nt_escape(node_string):
         elif char >= u'\u0020' and char <= u'\u0021' or\
              char >= u'\u0023' and char <= u'\u005B' or\
              char >= u'\u005D' and char <= u'\u007E':
-            output_string += char
-        else:
+            output_string += char.enocde('utf-8')
+        elif char >= u'\u007F' and char <= u'\uFFFF':
             output_string += '\\u%04X' % ord(char)
+        elif char >= u'\U00010000' and char <= u'\U0010FFFF':
+            output_string += '\\U%08X' % ord(char)
     return output_string
 
 class NQSerializer(Serializer):
