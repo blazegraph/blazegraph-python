@@ -3,6 +3,9 @@ from operator import itemgetter
 import urllib
 import urlparse
 
+from pymantic.util import quote_normalized_iri
+from pymantic.serializers import nt_escape
+
 class Triple(tuple):
     'Triple(subject, predicate, object)' 
 
@@ -142,15 +145,21 @@ class NamedNode(unicode):
     
     def __repr__(self):
         return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
+    
+    def __str__(self):
+        return '<' + nt_escape(quote_normalized_iri(self.value)) + '>'
 
 class BlankNode(object):
 
     @property
     def value(self):
-        return id(self)
+        return ''.join(chr(ord(c) + 17) for c in hex(id(self))[2:])
     
     def __repr__(self):
         return 'BlankNode()'
+
+    def __str__(self):
+        return '_:' + self.value
     
 from collections import defaultdict
 def Index():
