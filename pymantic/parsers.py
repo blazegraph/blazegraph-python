@@ -37,13 +37,13 @@ class BaseLeplParser(object):
     def make_language_literal(self, values):
         from pymantic.primitives import Literal
         if len(values) == 2:
-            return Literal(value = nt_unescape(values[0]), language = values[1])
+            return Literal(value = values[0], language = values[1])
         else:
-            return Literal(value = nt_unescape(values[0]))
+            return Literal(value = values[0])
     
     def make_named_node(self, values):
         from pymantic.primitives import NamedNode
-        return NamedNode(normalize_iri(nt_unescape(values[0])))
+        return NamedNode(normalize_iri(values[0]))
     
     def make_blank_node(self, values):
         from pymantic.primitives import BlankNode
@@ -91,6 +91,17 @@ class BaseNParser(BaseLeplParser):
         self.predicate = self.uriref
         self.subject = self.uriref | self.nodeID
         self.comment = Literal('#') & Regexp(r'[ -~]*')
+        
+    def make_named_node(self, values):
+        from pymantic.primitives import NamedNode
+        return NamedNode(normalize_iri(nt_unescape(values[0])))
+    
+    def make_language_literal(self, values):
+        from pymantic.primitives import Literal
+        if len(values) == 2:
+            return Literal(value = nt_unescape(values[0]), language = values[1])
+        else:
+            return Literal(value = nt_unescape(values[0]))
 
 class NTriplesParser(BaseNParser):
     def make_triple(self, values):
