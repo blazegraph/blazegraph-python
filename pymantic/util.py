@@ -1,18 +1,18 @@
 """Utility functions used throughout pymantic."""
 
-__all__ = ['en', 'de', 'one_or_none', 'normalize_iri']
+__all__ = ['en', 'de', 'one_or_none', 'normalize_iri', 'quote_normalized_iri',]
 
 import re
 from urllib import quote
 
-from pymantic.primitives import Literal
-
 def en(value):
     """Returns an RDF literal from the en language for the given value."""
+    from pymantic.primitives import Literal
     return Literal(value, language='en')
 
 def de(value):
     """Returns an RDF literal from the de language for the given value."""
+    from pymantic.primitives import Literal
     return Literal(value, language='de')
 
 def one_or_none(values):
