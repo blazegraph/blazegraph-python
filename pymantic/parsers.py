@@ -25,7 +25,6 @@ def nt_unescape(nt_string):
     nt_string = unicode_re.sub(chr_match, nt_string)
     return nt_string
 
-
 class BaseLeplParser(object):
 
     def __init__(self):

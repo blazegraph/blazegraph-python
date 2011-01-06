@@ -46,7 +46,7 @@ class Triple(tuple):
     object = property(itemgetter(2))
     
     def __str__(self):
-        pass
+        return str(self.subject) + ' ' + str(self.predicate) + ' ' + str(self.object) + ' .\n'
         
 class Quad(tuple):
     'Quad(graph, subject, predicate, object)' 
@@ -87,6 +87,9 @@ class Quad(tuple):
     subject = property(itemgetter(1))
     predicate = property(itemgetter(2))
     object = property(itemgetter(3))
+    
+    def __str__(self):
+        return str(self.subject) + ' ' + str(self.predicate) + ' ' + str(self.object) + ' ' + str(self.graph) + ' .\n'
 
 def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
@@ -134,6 +137,15 @@ class Literal(tuple):
     datatype = property(itemgetter(2))
     
     interfaceName = "Literal"
+    
+    def __str__(self):
+        quoted = '"' + nt_escape(self.value) + '"'
+        if self.language:
+            return quoted + '@' + self.language
+        elif self.datatype:
+            return quoted + '^^' + str(self.datatype)
+        else:
+            return quoted
 
 class NamedNode(unicode):
     
@@ -168,6 +180,8 @@ def Index():
 class Graph(object):
     
     def __init__(self, graph_uri=None):
+        if not isinstance(graph_uri, NamedNode):
+            graph_uri = NamedNode(graph_uri)
         self._uri = graph_uri
         self._triples = set()
         self._spo = Index()
