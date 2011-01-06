@@ -8,19 +8,20 @@ from threading import local
 from urlparse import urljoin
 from pymantic.util import normalize_iri
 
-unicode_re = re.compile(r'\\u([0-9]{4})')
+unicode_re = re.compile(r'\\u([0-9A-Za-z]{4})|\\U([0-9A-Za-z]{8})')
 
 def nt_unescape(nt_string):
     """Un-do nt escaping style."""
-    output_string = ''
+    output_string = u''
+    nt_string = nt_string.decode('utf-8')
     nt_string = nt_string.replace('\\t', u'\u0009')
     nt_string = nt_string.replace('\\n', u'\u000A')
     nt_string = nt_string.replace('\\r', u'\u000D')
     nt_string = nt_string.replace('\\"', u'\u0022')
     nt_string = nt_string.replace('\\\\', u'\u005C')
     def chr_match(matchobj):
-        ordinal = matchobj.group(1)
-        return chr(ordinal)
+        ordinal = matchobj.group(1) or matchobj.group(2)
+        return unichr(ordinal)
     nt_string = unicode_re.sub(chr_match, nt_string)
     return nt_string
 
