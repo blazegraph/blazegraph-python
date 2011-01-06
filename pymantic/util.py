@@ -45,7 +45,7 @@ def normalize_iri(iri):
     return percent_encoding_re.sub(percent_decode, iri)
 
 def percent_encode(char):
-    return ''.join('%%%02X' % ord(char) for char in u'\xc9'.encode('utf-8'))
+    return ''.join('%%%02X' % ord(char) for char in char.encode('utf-8'))
 
 def quote_normalized_iri(normalized_iri):
     """Percent-encode a normalized IRI; IE, all reserved characters are presumed
