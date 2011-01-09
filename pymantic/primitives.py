@@ -1,4 +1,8 @@
+__all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
+           'Namespace', 'BlankNode', 'Graph', 'Dataset',]
+
 import collections
+import datetime
 from operator import itemgetter
 import urllib
 import urlparse
@@ -103,8 +107,17 @@ class Literal(tuple):
     __slots__ = () 
 
     _fields = ('value', 'language', 'datatype') 
+    
+    types = {
+        int: lambda v: (str(v), NamedNode('http://www.w3.org/2001/XMLSchema#integer')),
+        datetime.datetime: lambda v: (v.isoformat(), NamedNode('http://www.w3.org/2001/XMLSchema#dateTime'))
+    }
 
     def __new__(_cls, value, language=None, datatype=None):
+        if not isinstance(value, str) and not isinstance(value, unicode):
+            value, auto_datatype = _cls.types[type(value)](value)
+            if datatype is None:
+                datatype = auto_datatype
         return tuple.__new__(_cls, (value, language, datatype)) 
 
     @classmethod
@@ -113,7 +126,7 @@ class Literal(tuple):
         result = new(cls, iterable)
         if len(result) != 3:
             raise TypeError('Expected 3 arguments, got %d' % len(result))
-        return result 
+        return result
 
     def __repr__(self):
         return 'Literal(value=%r, language=%r, datatype=%r)' % self 
@@ -160,6 +173,10 @@ class NamedNode(unicode):
     
     def __str__(self):
         return '<' + nt_escape(quote_normalized_iri(self.value)) + '>'
+
+class Namespace(NamedNode):
+    def __call__(self, name):
+        return NamedNode(self + name)
 
 class BlankNode(object):
 
