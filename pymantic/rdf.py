@@ -8,28 +8,15 @@ import logging
 from cStringIO import StringIO
 from string import Template
 
-import rdflib
-from rdflib.term import URIRef as Original_URIRef
-import httplib2
-
 import pymantic.uri_schemes as uri_schemes
 import pymantic.util as util
+from pymantic.primitives import *
 
 log = logging.getLogger(__name__)
 
-class SaneURIRef(Original_URIRef):
-    __doc__ = Original_URIRef.__doc__ + '\n    Monkey-patched by pymantic.RDF import to have a sane __eq__ method.'
-    
-    def __eq__(self, other):
-        if isinstance(other, Original_URIRef) or isinstance(other, str) or isinstance(other, unicode):
-            return unicode(self) == unicode(other)
-        return NotImplemented
-
-#rdflib.term.URIRef = SaneURIRef # Monkey patch!
-
 def is_language(lang):
     """Is something a valid XML language?"""
-    if isinstance(lang, rdflib.URIRef):
+    if isinstance(lang, NamedNode):
         return False
     return True
 
@@ -67,12 +54,12 @@ def parse_curie(curie, namespaces):
     prefix, sep, reference = curie.partition(':')
     if not definitely_curie:
         if prefix in uri_schemes.schemes:
-            return rdflib.term.URIRef(curie)
+            return NamedNode(curie)
     if not reference and '' in namespaces:
         reference = prefix
-        return namespaces[''][reference]
+        return namespaces[''](reference)
     if prefix in namespaces:
-        return namespaces[prefix][reference]
+        return namespaces[prefix](reference)
     else:
         raise ValueError('Could not parse CURIE prefix %s from namespaces %s' % (prefix, namespaces))
 
@@ -100,9 +87,6 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
                 return uri.replace(namespace, prefix + seperator)
     return uri
 
-# TODO: Is it possible that, rather than inheriting from Resource,
-#  MetaResource should perform all the necessary bindings?
-
 class MetaResource(type):
     """Aggregates namespace and scalar information."""
     
@@ -118,8 +102,7 @@ class MetaResource(type):
                 scalars.update(base.scalars)
         if 'namespaces' in dct:
             for namespace in dct['namespaces']:
-                namespaces[namespace] = rdflib.namespace.Namespace(
-                    dct['namespaces'][namespace])
+                namespaces[namespace] = Namespace(dct['namespaces'][namespace])
         dct['namespaces'] = namespaces
         if 'scalars' in dct:
             for scalar in dct['scalars']:
@@ -193,33 +176,36 @@ class Resource(object):
     
     def __init__(self, graph, subject):
         self.graph = graph
-        if not isinstance(subject, rdflib.term.Node):
-            subject = rdflib.term.URIRef(subject)
+        if not isinstance(subject, NamedNode) and not isinstance(subject, BlankNode):
+            subject = NamedNode(subject)
         self.subject = subject
     
     @classmethod
     def new(cls, graph, subject = None):
         """Add type information to the graph for a new instance of this Resource."""
-        for prefix, namespace in cls.namespaces.iteritems():
-            graph.bind(prefix, namespace)
+        #for prefix, namespace in cls.namespaces.iteritems():
+            #graph.bind(prefix, namespace)
         if subject is None:
-            subject = rdflib.BNode()
-        if not isinstance(subject, rdflib.term.Node):
-            subject = rdflib.URIRef(subject)
+            subject = BlankNode()
+        if not isinstance(subject, NamedNode):
+            subject = NamedNode(subject)
         for rdf_class in cls.rdf_classes:
-            graph.add((subject, cls.resolve('rdf:type'), rdf_class))
+            graph.add(Triple(subject, cls.resolve('rdf:type'), rdf_class))
         return cls(graph, subject)
     
     def erase(self):
         """Erase all tripes for this resource from the graph."""
-        self.graph.remove((self.subject, None, None))
+        for triple in list(self.graph.match(Triple(self.subject, None, None))):
+            self.graph.remove(triple)
     
     def is_a(self):
         """Test to see if the subject of this resource has all the necessary
         RDF classes applied to it."""
         if hasattr(self, 'rdf_classes'):
             for rdf_class in self.rdf_classes:
-                if (self.subject, self.resolve('rdf:type'), rdf_class) not in self.graph:
+                if not any(self.graph.match(Triple(self.subject, 
+                                                   self.resolve('rdf:type'),
+                                                   rdf_class))):
                     return False
         return True
         
@@ -231,7 +217,7 @@ class Resource(object):
     def __eq__(self, other):
         if isinstance(other, Resource):
             return self.subject == other.subject
-        elif isinstance(other, rdflib.URIRef) or isinstance(other, str) or\
+        elif isinstance(other, NamedNode) or isinstance(other, str) or\
              isinstance(other, unicode):
             return unicode(self.subject) == unicode(other)
         return NotImplemented
@@ -244,36 +230,37 @@ class Resource(object):
     
     def bare_literals(self, predicate):
         """Objects for a predicate that are language-less, datatype-less Literals."""
-        return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                hasattr(obj, 'language') and obj.language is None and\
-                hasattr(obj, 'datatype') and obj.datatype is None]
+        return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+                hasattr(t.object, 'language') and t.object.language is None and\
+                hasattr(t.object, 'datatype') and t.object.datatype is None]
     
     def objects_by_lang(self, predicate, lang=None):
         """Objects for a predicate that match a specified language or, if
         language is None, have a language specified."""
         if lang:
-            return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    (hasattr(obj, 'language') and lang_match(lang, obj.language))]
+            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+                    hasattr(t.object, 'language') and lang_match(lang, t.object.language)]
         else:
-            return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    hasattr(obj, 'language') and obj.language is not None]
+            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+                    hasattr(t.object, 'language') and t.object.language is not None]
     
     def objects_by_datatype(self, predicate, datatype=None):
         """Objects for a predicate that match a specified datatype or, if
         datatype is None, have a datatype specified."""
         if datatype:
-            return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    (hasattr(obj, 'datatype') and obj.datatype == datatype)]
+            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+                    hasattr(t.object, 'datatype') and t.object.datatype == datatype]
         else:
-            return [obj for obj in self.graph.objects(self.subject, predicate) if\
-                    hasattr(obj, 'datatype') and obj.datatype is not None]
+            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+                    hasattr(t.object, 'datatype') and t.object.datatype is not None]
     
     def objects_by_type(self, predicate, resource_class = None):
         """Objects for a predicate that are instances of a particular Resource
         subclass or, if resource_class is none, are Resources."""
         selected_objects = []
-        for obj in self.graph.objects(self.subject, predicate):
-            if isinstance(obj, rdflib.BNode) or isinstance(obj, rdflib.URIRef):
+        for t in self.graph.match(Triple(self.subject, predicate, None)):
+            obj = t.object
+            if isinstance(obj, BlankNode) or isinstance(obj, NamedNode):
                 if resource_class is None or\
                    isinstance(self.classify(self.graph, obj),
                               resource_class):
@@ -282,18 +269,18 @@ class Resource(object):
 
     def objects(self, predicate):
         """All objects for a predicate."""
-        return [obj for obj in self.graph.objects(self.subject, predicate)]
+        return [t.object for t in self.graph.match(Triple(self.subject, predicate, None))]
     
     def object_of(self, predicate = None):
         """All subjects for which this resource is an object for the given
         predicate."""
         if predicate is None:
-            for subject, predicate in self.graph.subject_objects(self.subject):
-                yield (self.classify(self.graph, subject), predicate)
+            for triple in self.graph.match(Triple(None, None, self.subject)):
+                yield (self.classify(self.graph, triple.subject), triple.predicate)
         else:
             predicate = self.resolve(predicate)
-            for value in self.graph.subjects(predicate, self.subject):
-                yield self.classify(self.graph, value)
+            for triple in self.graph.match(Triple(None, predicate, self.subject)):
+                yield self.classify(self.graph, triple.subject)
     
     def __getitem__(self, key):
         """Fetch predicates off this subject by key dictionary-style.
@@ -353,18 +340,18 @@ class Resource(object):
             objects = self._objects_for_explicit_set(predicate, value, lang,
                                                      datatype, rdf_class)
         for obj in objects:
-            self.graph.remove((self.subject, predicate, obj))
-        if isinstance(value, frozenset) or isinstance(value, tuple):
+            self.graph.remove(Triple(self.subject, predicate, obj))
+        if isinstance(value, frozenset):
             for obj in value:
                 if isinstance(obj, Resource):
-                    self.graph.add((self.subject, predicate, obj.subject))
+                    self.graph.add(Triple(self.subject, predicate, obj.subject))
                 else:
-                    self.graph.add((self.subject, predicate, obj))
+                    self.graph.add(Triple(self.subject, predicate, obj))
         else:
             if isinstance(value, Resource):
-                self.graph.add((self.subject, predicate, value.subject))
+                self.graph.add(Triple(self.subject, predicate, value.subject))
             else:
-                self.graph.add((self.subject, predicate, value))
+                self.graph.add(Triple(self.subject, predicate, value))
         
         return self
     
@@ -377,7 +364,7 @@ class Resource(object):
         resource[key] returns."""
         predicate, objects = self._objects_for_key(key)
         for obj in objects:
-            self.graph.remove((self.subject, predicate, obj))
+            self.graph.remove(Triple(self.subject, predicate, obj))
    
     # Membership test
     
@@ -395,10 +382,11 @@ class Resource(object):
         subjects = set()
         for rdf_class in cls.rdf_classes:
             if not subjects:
-                subjects.update(graph.subjects(cls.resolve('rdf:type'), rdf_class))
+                subjects.update([t.subject for t in graph.match(
+                    Triple(None, cls.resolve('rdf:type'), rdf_class))])
             else:
-                subjects.intersection_update(
-                    graph.subjects(cls.resolve('rdf:type'), rdf_class))
+                subjects.intersection_update([t.subject for t in graph.match(
+                    Triple(None, cls.resolve('rdf:type'), rdf_class))])
         return set(cls(graph, subject) for subject in subjects)
     
     def __repr__(self):
@@ -406,7 +394,7 @@ class Resource(object):
     
     def __str__(self):
         if self['rdfs:label']:
-            return self['rdfs:label']
+            return self['rdfs:label'].value
         else:
             return self.subject
     
@@ -418,17 +406,16 @@ class Resource(object):
         registered Resource classes."""
         if obj is None:
             return None
-        if isinstance(obj, rdflib.term.Literal):
+        if isinstance(obj, Literal):
             return obj
-        if (obj, cls.resolve('rdf:type'), None) not in graph:
-            retrieve_resource(graph, obj)
-            if (obj, cls.resolve('rdf:type'), None) not in graph:
+        if any(graph.match(Triple(obj, cls.resolve('rdf:type'), None))):
+            #retrieve_resource(graph, obj)
+            if not any(graph.match(Triple(obj, cls.resolve('rdf:type'), None))):
                 return Resource(graph, obj)
-        types = frozenset(graph.objects(obj, cls.resolve('rdf:type')))
+        types = frozenset([t.object for t in graph.match(
+            Triple(obj, cls.resolve('rdf:type'), None))])
         python_classes = tuple(cls.__metaclass__._classes[t] for t in types if\
                                t in cls.__metaclass__._classes)
-        print types
-        print python_classes
         if len(python_classes) == 0:
             return Resource(graph, obj)
         elif len(python_classes) == 1:
@@ -458,10 +445,11 @@ class Resource(object):
                 lang = key[1]
             else:
                 datatype = key[1]
-            key = key[0]
+            predicate = self.resolve(key[0])
         else:
+            predicate = self.resolve(key)
+        if not isinstance(key, tuple) and predicate in self.scalars:
             lang = self.lang
-        predicate = self.resolve(key)
         return predicate, lang, datatype, rdf_class
     
     def _objects_for_key(self, key):
@@ -473,10 +461,14 @@ class Resource(object):
             objects = self.objects(predicate)
         elif lang:
             objects = self.objects_by_lang(predicate, lang)
-            if not isinstance(key, tuple) and not objects:
+            if not isinstance(key, tuple) and predicate in self.scalars and not objects:
                 objects += self.objects_by_type(predicate)
-                objects += self.objects_by_datatype(predicate)
-                objects += self.bare_literals(predicate)
+                if not objects:
+                    objects += self.objects_by_datatype(predicate)
+                if not objects:
+                    objects += self.bare_literals(predicate)
+            if predicate not in self.scalars:
+                objects += self.objects_by_type(predicate)
         elif datatype:
             objects = self.objects_by_datatype(predicate, datatype)
             if predicate not in self.scalars:
@@ -490,14 +482,16 @@ class Resource(object):
     def _objects_for_implicit_set(self, predicate, value):
         """Find the objects that should be removed from the graph when doing a
         dictionary-style set with implicit type information."""
-        if (isinstance(value, frozenset) or isinstance(value, tuple)) and\
+        if (isinstance(value, frozenset) or (isinstance(value, tuple) and\
+                                             not isinstance(value, Literal))) and\
            predicate in self.scalars:
             raise ValueError('Cannot store sequences in scalars')
-        elif predicate in self.scalars and isinstance(value, rdflib.Literal)\
+        elif predicate in self.scalars and isinstance(value, Literal)\
              and value.language:
             return self.objects_by_lang(predicate, value.language) +\
                    self.objects_by_datatype(predicate) +\
-                   self.objects_by_type(predicate)
+                   self.objects_by_type(predicate) +\
+                   self.bare_literals(predicate)
         else:
             return self.objects(predicate)
     
@@ -525,40 +519,42 @@ class Resource(object):
         """Create copies of all triples with this resource as their subject
         with the target subject as their subject. Returns a classified version
         of the target subject."""
-        if not isinstance(target_subject, rdflib.term.Node):
-            target_subject = rdflib.URIRef(target_subject)
-        for predicate, obj in self.graph.predicate_objects(self.subject):
-            self.graph.add((target_subject, predicate, obj))
+        if not isinstance(target_subject, NamedNode) and\
+           not isinstance(target_subject, BlankNode):
+            target_subject = NamedNode(target_subject)
+        for t in self.graph.match(Triple(self.subject, None, None)):
+            self.graph.add((target_subject, t.predicate, t.object))
         return self.classify(self.graph, target_subject)
 
 def literalize(graph, value, lang, datatype):
     """Convert either a value or a sequence of values to either a Literal or
     a Resource."""
-    if isinstance(value, set) or isinstance(value, frozenset):
+    if isinstance(value, set) or isinstance(value, frozenset) or\
+       isinstance(value, list) or (isinstance(value, tuple) and\
+                                   not isinstance(value, Literal)):
         return frozenset(objectify_value(graph, v, lang, datatype) for v in value)
-    elif isinstance(value, list) or isinstance(value, tuple):
-        # Eventually return tuple.
-        raise NotImplemented('Still need to do Seq handling.')
     else:
         return objectify_value(graph, value, lang, datatype)
 
 def objectify_value(graph, value, lang = None, datatype = None):
     """Convert a single value into either a Literal or a Resource."""
-    if isinstance(value, rdflib.BNode) or isinstance(value, rdflib.URIRef):
+    if isinstance(value, BlankNode) or isinstance(value, NamedNode):
         return Resource.classify(graph, value)
-    elif isinstance(value, rdflib.Literal) or isinstance(value, Resource):
+    elif isinstance(value, Literal) or isinstance(value, Resource):
         return value
     elif isinstance(value, str) or isinstance(value, unicode):
-        return rdflib.Literal(value, lang = lang, datatype = datatype)
+        return Literal(value, language = lang, datatype = datatype)
     else:
-        return rdflib.Literal(value)
+        return Literal(value)
 
 def check_objects(graph, value, lang, datatype, rdf_class):
     """Determine that value or the things in values are appropriate for the
     specified explicit object access key."""
-    if isinstance(value, frozenset) or isinstance(value, tuple):
+    if isinstance(value, frozenset) or (isinstance(value, tuple) and\
+                                        not isinstance(value, Literal)):
         for v in value:
-            if (lang and not lang_match(v.language, lang)) or \
+            if (lang and (not hasattr(v, 'language') or\
+                          not lang_match(v.language, lang))) or \
                (datatype and v.datatype != datatype) or \
                (rdf_class and not isinstance(v, rdf_class)):
                 return False
@@ -567,50 +563,3 @@ def check_objects(graph, value, lang, datatype, rdf_class):
         return (lang and lang_match(value.language, lang)) or \
                (datatype and value.datatype == datatype) or \
                (rdf_class and isinstance(value, rdf_class))
-
-def retrieve_resource(graph, subject):
-    """Attempt to retrieve an RDF resource VIA HTTP."""
-    parsed_subject = urlparse.urlparse(subject)
-    publicID=urlparse.urlunparse((parsed_subject.scheme,
-                                  parsed_subject.netloc,
-                                  parsed_subject.path,
-                                  '', '', ''))
-    if hasattr(graph, "retrieve_http") and graph.retrieve_http and \
-       (not hasattr(graph, "retrieved_uris") or \
-        publicID not in graph.retrieved_uris) and \
-       (parsed_subject.scheme == 'http' or parsed_subject.scheme == 'https'):
-        if not hasattr(graph, "retrieved_uris"):
-            graph.retrieved_uris = set()
-        if _valid_retrieve_url(graph, self.subject):
-            if hasattr(graph, 'http_cache'):
-                cache = graph.http_cache
-            else:
-                cache = None
-            http = httplib2.Http(cache=cache)
-            resp, content = http.request(uri=str(publicID), method='GET')
-            if resp['status'] == '200':
-                graph.parse(StringIO(content), publicID=publicID)
-                graph.retrieved_uris.add(publicID)
-            else:
-                log.debug('Could not retrieve %s: %s', publicID, resp['status'])
-
-def _valid_retrieve_url(graph, url):
-    if hasattr(graph, 'retrieve_http_whitelist'):
-        for entry in graph.retrieve_http_whitelist:
-            regex = re.compile(entry)
-            if regex.match(url):
-                log.debug('%s passed whitelist under %s', url, entry)
-                return True
-        return False
-    if hasattr(graph, 'retrieve_http_blacklist'):
-        for entry in graph.retrieve_http_blacklist:
-            regex = re.compile(entry)
-            if regex.match(url):
-                log.debug('%s failed blacklist under %s', url, entry)
-                return False
-    return True
-
-class Property(Resource):
-    """A rdf:Property."""
-    
-    classification_value = '[rdf:Property]'

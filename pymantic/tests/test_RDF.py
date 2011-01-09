@@ -1,14 +1,13 @@
 import datetime
 import unittest
 
-import rdflib.graph
-import rdflib.term
-import rdflib.namespace
-
 import pymantic.rdf
 import pymantic.util
+from pymantic.primitives import *
 
-from rdflib.namespace import XSD, RDF
+XSD = Namespace('http://www.w3.org/2001/XMLSchema#')
+
+RDF = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
 class TestRDF(unittest.TestCase):
     def tearDown(self):
@@ -16,42 +15,42 @@ class TestRDF(unittest.TestCase):
     
     def testCurieURI(self):
         """Test CURIE parsing of explicit URIs."""
-        test_ns = {'http': rdflib.namespace.Namespace('WRONG!'),
-                   'urn': rdflib.namespace.Namespace('WRONG!'),}
+        test_ns = {'http': Namespace('WRONG!'),
+                   'urn': Namespace('WRONG!'),}
         self.assertEqual(pymantic.rdf.parse_curie('http://oreilly.com', test_ns),
-                         rdflib.term.URIRef('http://oreilly.com'))
+                         NamedNode('http://oreilly.com'))
         self.assertEqual(pymantic.rdf.parse_curie('urn:isbn:1234567890123', test_ns),
-                         rdflib.term.URIRef('urn:isbn:1234567890123'))
+                         NamedNode('urn:isbn:1234567890123'))
     
     def testCurieDefaultNamespace(self):
         """Test CURIE parsing of CURIEs in the default namespace."""
-        test_ns = {'': rdflib.namespace.Namespace('foo/'),
-                   'wrong': rdflib.namespace.Namespace('WRONG!')}
+        test_ns = {'': Namespace('foo/'),
+                   'wrong': Namespace('WRONG!')}
         self.assertEqual(pymantic.rdf.parse_curie('bar', test_ns),
-                         rdflib.term.URIRef('foo/bar'))
+                         NamedNode('foo/bar'))
         self.assertEqual(pymantic.rdf.parse_curie('[bar]', test_ns),
-                         rdflib.term.URIRef('foo/bar'))
+                         NamedNode('foo/bar'))
         self.assertEqual(pymantic.rdf.parse_curie('baz', test_ns),
-                         rdflib.term.URIRef('foo/baz'))
+                         NamedNode('foo/baz'))
         self.assertEqual(pymantic.rdf.parse_curie('[aap]', test_ns),
-                         rdflib.term.URIRef('foo/aap'))
+                         NamedNode('foo/aap'))
     
     def testCurieNamespaces(self):
         """Test CURIE parsing of CURIEs in non-default namespaces."""
-        test_ns = {'': rdflib.namespace.Namespace('WRONG!'),
-                   'foo': rdflib.namespace.Namespace('foobly/'),
-                   'bar': rdflib.namespace.Namespace('bardle/'),
-                   'http': rdflib.namespace.Namespace('reallybadidea/'),}
+        test_ns = {'': Namespace('WRONG!'),
+                   'foo': Namespace('foobly/'),
+                   'bar': Namespace('bardle/'),
+                   'http': Namespace('reallybadidea/'),}
         self.assertEqual(pymantic.rdf.parse_curie('foo:aap', test_ns),
-                         rdflib.term.URIRef('foobly/aap'))
+                         NamedNode('foobly/aap'))
         self.assertEqual(pymantic.rdf.parse_curie('[bar:aap]', test_ns),
-                         rdflib.term.URIRef('bardle/aap'))
+                         NamedNode('bardle/aap'))
         self.assertEqual(pymantic.rdf.parse_curie('[foo:baz]', test_ns),
-                         rdflib.term.URIRef('foobly/baz'))
+                         NamedNode('foobly/baz'))
         self.assertEqual(pymantic.rdf.parse_curie('bar:baz', test_ns),
-                         rdflib.term.URIRef('bardle/baz'))
+                         NamedNode('bardle/baz'))
         self.assertEqual(pymantic.rdf.parse_curie('[http://oreilly.com]', test_ns),
-                         rdflib.term.URIRef('reallybadidea///oreilly.com'))
+                         NamedNode('reallybadidea///oreilly.com'))
     
     def testCurieNoSuffix(self):
         """Test CURIE parsing of CURIEs with no suffix."""
@@ -59,7 +58,7 @@ class TestRDF(unittest.TestCase):
     
     def testUnparseableCuries(self):
         """Test some CURIEs that shouldn't parse."""
-        test_ns = {'foo': rdflib.namespace.Namespace('WRONG!'),}
+        test_ns = {'foo': Namespace('WRONG!'),}
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, '[bar]', test_ns)
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, 'bar', test_ns)
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, 'bar:baz', test_ns)
@@ -76,9 +75,9 @@ class TestRDF(unittest.TestCase):
             __metaclass__ = pymantic.rdf.MetaResource
             namespaces = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         
-        self.assertEqual(Foo.namespaces, {'foo': rdflib.namespace.Namespace('bar'),
-                                          'baz': rdflib.namespace.Namespace('garply'),
-                                          'meme': rdflib.namespace.Namespace('lolcatz!'),})
+        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+                                          'baz': Namespace('garply'),
+                                          'meme': Namespace('lolcatz!'),})
     
     def testMetaResourceNamespaceInheritance(self):
         """Test the composition of namespace dictionaries by MetaResource."""
@@ -87,14 +86,14 @@ class TestRDF(unittest.TestCase):
             namespaces = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         class Bar(Foo):
             namespaces = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',}
-        self.assertEqual(Foo.namespaces, {'foo': rdflib.namespace.Namespace('bar'),
-                                          'baz': rdflib.namespace.Namespace('garply'),
-                                          'meme': rdflib.namespace.Namespace('lolcatz!'),})
-        self.assertEqual(Bar.namespaces, {'foo': rdflib.namespace.Namespace('bar'),
-                                          'baz': rdflib.namespace.Namespace('garply'),
-                                          'meme': rdflib.namespace.Namespace('lolcatz!'),
-                                          'allyourbase': rdflib.namespace.Namespace('arebelongtous!'),
-                                          'bunny': rdflib.namespace.Namespace('pancake'),})
+        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+                                          'baz': Namespace('garply'),
+                                          'meme': Namespace('lolcatz!'),})
+        self.assertEqual(Bar.namespaces, {'foo': Namespace('bar'),
+                                          'baz': Namespace('garply'),
+                                          'meme': Namespace('lolcatz!'),
+                                          'allyourbase': Namespace('arebelongtous!'),
+                                          'bunny': Namespace('pancake'),})
     
     def testMetaResourceNamespaceInheritanceReplacement(self):
         """Test the composition of namespace dictionaries by MetaResource where
@@ -105,28 +104,28 @@ class TestRDF(unittest.TestCase):
         class Bar(Foo):
             namespaces = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',
                           'foo': 'notbar', 'baz': 'notgarply',}
-        self.assertEqual(Foo.namespaces, {'foo': rdflib.namespace.Namespace('bar'),
-                                          'baz': rdflib.namespace.Namespace('garply'),
-                                          'meme': rdflib.namespace.Namespace('lolcatz!'),})
-        self.assertEqual(Bar.namespaces, {'foo': rdflib.namespace.Namespace('notbar'),
-                                          'baz': rdflib.namespace.Namespace('notgarply'),
-                                          'meme': rdflib.namespace.Namespace('lolcatz!'),
-                                          'allyourbase': rdflib.namespace.Namespace('arebelongtous!'),
-                                          'bunny': rdflib.namespace.Namespace('pancake'),})
+        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+                                          'baz': Namespace('garply'),
+                                          'meme': Namespace('lolcatz!'),})
+        self.assertEqual(Bar.namespaces, {'foo': Namespace('notbar'),
+                                          'baz': Namespace('notgarply'),
+                                          'meme': Namespace('lolcatz!'),
+                                          'allyourbase': Namespace('arebelongtous!'),
+                                          'bunny': Namespace('pancake'),})
 
     def testResourceEquality(self):
-        graph = rdflib.graph.Graph()
-        otherGraph = rdflib.graph.Graph()
+        graph = Graph()
+        otherGraph = Graph()
         testResource = pymantic.rdf.Resource(graph, 'foo')
         self.assertEqual(testResource, pymantic.rdf.Resource(
             graph, 'foo'))
-        self.assertEqual(testResource, rdflib.term.URIRef('foo'))
+        self.assertEqual(testResource, NamedNode('foo'))
         self.assertEqual(testResource, 'foo')
         self.assertNotEqual(testResource, pymantic.rdf.Resource(
             graph, 'bar'))
         self.assertEqual(testResource, pymantic.rdf.Resource(
             otherGraph, 'foo'))
-        self.assertNotEqual(testResource, rdflib.term.URIRef('bar'))
+        self.assertNotEqual(testResource, NamedNode('bar'))
         self.assertNotEqual(testResource, 'bar')
         self.assertNotEqual(testResource, 42)
     
@@ -138,10 +137,10 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        test_subject = rdflib.term.URIRef('http://example.com/athing')
-        graph = rdflib.graph.Graph()
-        graph.add((test_subject, Offering.resolve('rdf:type'),
-                   Offering.resolve('gr:Offering')))
+        test_subject = NamedNode('http://example.com/athing')
+        graph = Graph()
+        graph.add(Triple(test_subject, Offering.resolve('rdf:type'),
+                         Offering.resolve('gr:Offering')))
         offering = pymantic.rdf.Resource.classify(graph, test_subject)
         self.assert_(isinstance(offering, Offering))
     
@@ -160,18 +159,18 @@ class TestRDF(unittest.TestCase):
                 'foaf': 'http://xmlns.com/foaf/0.1/',
             }
         
-        test_subject1 = rdflib.term.URIRef('http://example.com/aorganization')
-        test_subject2 = rdflib.term.URIRef('http://example.com/agroup')
-        test_subject3 = rdflib.term.URIRef('http://example.com/aorgandgroup')
-        graph = rdflib.graph.Graph()
-        graph.add((test_subject1, Organization.resolve('rdf:type'),
-                   Organization.resolve('foaf:Organization')))
-        graph.add((test_subject2, Group.resolve('rdf:type'),
-                   Group.resolve('foaf:Group')))
-        graph.add((test_subject3, Organization.resolve('rdf:type'),
-                   Organization.resolve('foaf:Organization')))
-        graph.add((test_subject3, Organization.resolve('rdf:type'),
-                   Organization.resolve('foaf:Group')))
+        test_subject1 = NamedNode('http://example.com/aorganization')
+        test_subject2 = NamedNode('http://example.com/agroup')
+        test_subject3 = NamedNode('http://example.com/aorgandgroup')
+        graph = Graph()
+        graph.add(Triple(test_subject1, Organization.resolve('rdf:type'),
+                         Organization.resolve('foaf:Organization')))
+        graph.add(Triple(test_subject2, Group.resolve('rdf:type'),
+                         Group.resolve('foaf:Group')))
+        graph.add(Triple(test_subject3, Organization.resolve('rdf:type'),
+                         Organization.resolve('foaf:Organization')))
+        graph.add(Triple(test_subject3, Organization.resolve('rdf:type'),
+                         Organization.resolve('foaf:Group')))
         organization = pymantic.rdf.Resource.classify(graph, test_subject1)
         group = pymantic.rdf.Resource.classify(graph, test_subject2)
         both = pymantic.rdf.Resource.classify(graph, test_subject3)
@@ -184,24 +183,26 @@ class TestRDF(unittest.TestCase):
 
     def testStr(self):
         """Test str-y serialization of Resources."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/aorganization')
-        test_label = rdflib.term.Literal('Test Label', lang='en')
-        graph.add((test_subject1, pymantic.rdf.Resource.resolve('rdfs:label'),
-                   test_label))
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/aorganization')
+        test_label = Literal('Test Label', language='en')
+        graph.add(Triple(test_subject1,
+                         pymantic.rdf.Resource.resolve('rdfs:label'),
+                         test_label))
         r = pymantic.rdf.Resource(graph, test_subject1)
         self.assertEqual(r['rdfs:label'], test_label)
-        self.assertEqual(str(r), str(test_label))
+        self.assertEqual(str(r), test_label.value)
     
     def testGetSetDelPredicate(self):
         """Test getting, setting, and deleting a multi-value predicate."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         r['rdfs:example'] = set(('foo', 'bar'))
         example_values = set(r['rdfs:example'])
-        self.assert_(rdflib.term.Literal('foo', lang='en') in example_values)
-        self.assert_(rdflib.term.Literal('bar', lang='en') in example_values)
+        print example_values
+        self.assert_(Literal('foo') in example_values)
+        self.assert_(Literal('bar') in example_values)
         self.assertEqual(len(example_values), 2)
         del r['rdfs:example']
         example_values = set(r['rdfs:example'])
@@ -209,125 +210,123 @@ class TestRDF(unittest.TestCase):
     
     def testGetSetDelScalarPredicate(self):
         """Test getting, setting, and deleting a scalar predicate."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         r['rdfs:label'] = 'foo'
-        self.assertEqual(r['rdfs:label'], rdflib.term.Literal('foo', lang='en'))
+        self.assertEqual(r['rdfs:label'], Literal('foo', language='en'))
         del r['rdfs:label']
         self.assertEqual(r['rdfs:label'], None)
     
     def testGetSetDelPredicateLanguage(self):
         """Test getting, setting and deleting a multi-value predicate with an explicit language."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         r['rdfs:example', 'en'] = set(('baz',))
         r['rdfs:example', 'fr'] = set(('foo', 'bar'))
         example_values = set(r['rdfs:example', 'fr'])
-        self.assert_(rdflib.term.Literal('foo', lang='fr') in example_values)
-        self.assert_(rdflib.term.Literal('bar', lang='fr') in example_values)
-        self.assert_(rdflib.term.Literal('baz', lang='en') not in example_values)
+        self.assert_(Literal('foo', language='fr') in example_values)
+        self.assert_(Literal('bar', language='fr') in example_values)
+        self.assert_(Literal('baz', language='en') not in example_values)
         self.assertEqual(len(example_values), 2)
         example_values = set(r['rdfs:example', 'en'])
-        self.assert_(rdflib.term.Literal('foo', lang='fr') not in example_values)
-        self.assert_(rdflib.term.Literal('bar', lang='fr') not in example_values)
-        self.assert_(rdflib.term.Literal('baz', lang='en') in example_values)
+        self.assert_(Literal('foo', language='fr') not in example_values)
+        self.assert_(Literal('bar', language='fr') not in example_values)
+        self.assert_(Literal('baz', language='en') in example_values)
         self.assertEqual(len(example_values), 1)
         del r['rdfs:example', 'fr']
         example_values = set(r['rdfs:example', 'fr'])
         self.assertEqual(len(example_values), 0)
         example_values = set(r['rdfs:example', 'en'])
-        self.assert_(rdflib.term.Literal('foo', lang='fr') not in example_values)
-        self.assert_(rdflib.term.Literal('bar', lang='fr') not in example_values)
-        self.assert_(rdflib.term.Literal('baz', lang='en') in example_values)
+        self.assert_(Literal('foo', language='fr') not in example_values)
+        self.assert_(Literal('bar', language='fr') not in example_values)
+        self.assert_(Literal('baz', language='en') in example_values)
         self.assertEqual(len(example_values), 1)
     
     def testGetSetDelScalarPredicateLanguage(self):
         """Test getting, setting, and deleting a scalar predicate with an explicit language."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         r['rdfs:label'] = 'foo'
         r['rdfs:label', 'fr'] = 'bar'
-        self.assertEqual(r['rdfs:label'], rdflib.term.Literal('foo', lang='en'))
-        self.assertEqual(r['rdfs:label', 'en'], rdflib.term.Literal('foo', lang='en'))
-        self.assertEqual(r['rdfs:label', 'fr'], rdflib.term.Literal('bar', lang='fr'))
+        self.assertEqual(r['rdfs:label'], Literal('foo', language='en'))
+        self.assertEqual(r['rdfs:label', 'en'], Literal('foo', language='en'))
+        self.assertEqual(r['rdfs:label', 'fr'], Literal('bar', language='fr'))
         del r['rdfs:label']
         self.assertEqual(r['rdfs:label'], None)
         self.assertEqual(r['rdfs:label', 'en'], None)
-        self.assertEqual(r['rdfs:label', 'fr'], rdflib.term.Literal('bar', lang='fr'))
+        self.assertEqual(r['rdfs:label', 'fr'], Literal('bar', language='fr'))
     
     def testGetSetDelPredicateDatatype(self):
         """Test getting, setting and deleting a multi-value predicate with an explicit datatype."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         now = datetime.datetime.now()
         then = datetime.datetime.now() - datetime.timedelta(days=1)
         number = 42
-        r['rdfs:example', XSD['integer']] = set((number,))
-        r['rdfs:example', XSD['dateTime']] = set((now, then,))
-        example_values = set(r['rdfs:example', XSD['dateTime']])
+        r['rdfs:example', XSD('integer')] = set((number,))
+        r['rdfs:example', XSD('dateTime')] = set((now, then,))
+        example_values = set(r['rdfs:example', XSD('dateTime')])
         print example_values
-        self.assert_(rdflib.term.Literal(now) in example_values)
-        self.assert_(rdflib.term.Literal(then) in example_values)
-        self.assert_(rdflib.term.Literal(number) not in example_values)
+        self.assert_(Literal(now) in example_values)
+        self.assert_(Literal(then) in example_values)
+        self.assert_(Literal(number) not in example_values)
         self.assertEqual(len(example_values), 2)
-        example_values = set(r['rdfs:example', XSD['integer']])
-        self.assert_(rdflib.term.Literal(now) not in example_values)
-        self.assert_(rdflib.term.Literal(then) not in example_values)
-        self.assert_(rdflib.term.Literal(number) in example_values)
+        example_values = set(r['rdfs:example', XSD('integer')])
+        self.assert_(Literal(now) not in example_values)
+        self.assert_(Literal(then) not in example_values)
+        self.assert_(Literal(number) in example_values)
         self.assertEqual(len(example_values), 1)
-        del r['rdfs:example', XSD['dateTime']]
-        example_values = set(r['rdfs:example', XSD['dateTime']])
+        del r['rdfs:example', XSD('dateTime')]
+        example_values = set(r['rdfs:example', XSD('dateTime')])
         self.assertEqual(len(example_values), 0)
-        example_values = set(r['rdfs:example', XSD['integer']])
-        self.assert_(rdflib.term.Literal(now) not in example_values)
-        self.assert_(rdflib.term.Literal(then) not in example_values)
-        self.assert_(rdflib.term.Literal(number) in example_values)
+        example_values = set(r['rdfs:example', XSD('integer')])
+        self.assert_(Literal(now) not in example_values)
+        self.assert_(Literal(then) not in example_values)
+        self.assert_(Literal(number) in example_values)
         self.assertEqual(len(example_values), 1)
     
     def testGetSetDelScalarPredicateDatatype(self):
         """Test getting, setting, and deleting a scalar predicate with an explicit datatype."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         now = datetime.datetime.now()
         number = 42
-        r['rdfs:label', XSD['integer']] = number
-        self.assertEqual(r['rdfs:label', XSD['integer']],
-                         rdflib.term.Literal(number, datatype=XSD['integer']))
-        self.assertEqual(r['rdfs:label', XSD['dateTime']], None)
+        r['rdfs:label', XSD('integer')] = number
+        self.assertEqual(r['rdfs:label', XSD('integer')],
+                         Literal(number, datatype=XSD('integer')))
+        self.assertEqual(r['rdfs:label', XSD('dateTime')], None)
         self.assertEqual(r['rdfs:label'],
-                         rdflib.term.Literal(number, datatype=XSD['integer']))
-        r['rdfs:label', XSD['dateTime']] = now
-        self.assertEqual(r['rdfs:label', XSD['dateTime']],
-                         rdflib.term.Literal(now))
-        self.assertEqual(r['rdfs:label', XSD['integer']], None)
-        self.assertEqual(r['rdfs:label'], rdflib.term.Literal(now))
-        del r['rdfs:label', XSD['integer']]
-        self.assertEqual(r['rdfs:label', XSD['dateTime']], rdflib.term.Literal(now))
-        self.assertEqual(r['rdfs:label', XSD['integer']], None)
-        self.assertEqual(r['rdfs:label'], rdflib.term.Literal(now))
-        del r['rdfs:label', XSD['dateTime']]
+                         Literal(number, datatype=XSD('integer')))
+        r['rdfs:label', XSD('dateTime')] = now
+        self.assertEqual(r['rdfs:label', XSD('dateTime')], Literal(now))
+        self.assertEqual(r['rdfs:label', XSD('integer')], None)
+        self.assertEqual(r['rdfs:label'], Literal(now))
+        del r['rdfs:label', XSD('integer')]
+        self.assertEqual(r['rdfs:label', XSD('dateTime')], Literal(now))
+        self.assertEqual(r['rdfs:label', XSD('integer')], None)
+        self.assertEqual(r['rdfs:label'], Literal(now))
+        del r['rdfs:label', XSD('dateTime')]
         self.assertEqual(r['rdfs:label'], None)
-        r['rdfs:label', XSD['integer']] = number
-        self.assertEqual(r['rdfs:label', XSD['integer']],
-                         rdflib.term.Literal(number, datatype=XSD['integer']))
-        self.assertEqual(r['rdfs:label', XSD['dateTime']], None)
-        self.assertEqual(r['rdfs:label'],
-                         rdflib.term.Literal(number, datatype=XSD['integer']))
+        r['rdfs:label', XSD('integer')] = number
+        self.assertEqual(r['rdfs:label', XSD('integer')],
+                         Literal(number, datatype=XSD('integer')))
+        self.assertEqual(r['rdfs:label', XSD('dateTime')], None)
+        self.assertEqual(r['rdfs:label'], Literal(number, datatype=XSD('integer')))
         del r['rdfs:label']
         self.assertEqual(r['rdfs:label'], None)
     
     def testGetSetDelPredicateType(self):
         """Test getting, setting and deleting a multi-value predicate with an explicit expected RDF Class."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
-        test_subject2 = rdflib.term.URIRef('http://example.com/aposi1')
-        test_subject3 = rdflib.term.URIRef('http://example.com/aposi2')
-        test_subject4 = rdflib.term.URIRef('http://example.com/possip1')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/offering')
+        test_subject2 = NamedNode('http://example.com/aposi1')
+        test_subject3 = NamedNode('http://example.com/aposi2')
+        test_subject4 = NamedNode('http://example.com/possip1')
         
         NAMESPACES = {
             'gr': 'http://purl.org/goodrelations/',
@@ -372,10 +371,10 @@ class TestRDF(unittest.TestCase):
     
     def testGetSetDelScalarPredicateType(self):
         """Test getting, setting, and deleting a scalar predicate with an explicit language."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
-        test_subject2 = rdflib.term.URIRef('http://example.com/aposi')
-        test_subject4 = rdflib.term.URIRef('http://example.com/possip')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/offering')
+        test_subject2 = NamedNode('http://example.com/aposi')
+        test_subject4 = NamedNode('http://example.com/possip')
         
         NAMESPACES = {
             'gr': 'http://purl.org/goodrelations/',
@@ -423,9 +422,9 @@ class TestRDF(unittest.TestCase):
 
     def testSetMixedScalarPredicate(self):
         """Test getting and setting a scalar predicate with mixed typing."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
-        test_subject2 = rdflib.term.URIRef('http://example.com/aposi')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/offering')
+        test_subject2 = NamedNode('http://example.com/aposi')
         
         NAMESPACES = {
             'gr': 'http://purl.org/goodrelations/',
@@ -443,9 +442,9 @@ class TestRDF(unittest.TestCase):
         
         offering = Offering.new(graph, test_subject1)
         aposi1 = ActualProduct.new(graph, test_subject2)
-        test_en = rdflib.Literal('foo', lang='en')
-        test_fr = rdflib.Literal('le foo', lang='fr')
-        test_dt = rdflib.Literal(42)
+        test_en = Literal('foo', language='en')
+        test_fr = Literal('le foo', language='fr')
+        test_dt = Literal('42', datatype = XSD('integer'))
         
         offering['gr:includes'] = aposi1
         self.assertEqual(offering['gr:includes'], aposi1)
@@ -454,19 +453,19 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(offering['gr:includes', ActualProduct], None)
         offering['gr:includes'] = test_en
         self.assertEqual(offering['gr:includes', ActualProduct], None)
-        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes', XSD('integer')], None)
         self.assertEqual(offering['gr:includes'], test_en)
         self.assertEqual(offering['gr:includes', 'en'], test_en)
         self.assertEqual(offering['gr:includes', 'fr'], None)
         offering['gr:includes'] = test_fr
         self.assertEqual(offering['gr:includes', ActualProduct], None)
-        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes', XSD('integer')], None)
         self.assertEqual(offering['gr:includes'], test_en)
         self.assertEqual(offering['gr:includes', 'en'], test_en)
         self.assertEqual(offering['gr:includes', 'fr'], test_fr)
         offering['gr:includes'] = aposi1
         self.assertEqual(offering['gr:includes'], aposi1)
-        self.assertEqual(offering['gr:includes', XSD['integer']], None)
+        self.assertEqual(offering['gr:includes', XSD('integer')], None)
         self.assertEqual(offering['gr:includes', 'en'], None)
         self.assertEqual(offering['gr:includes', 'fr'], None)
     
@@ -484,15 +483,15 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
-        test_subject2 = rdflib.term.URIRef('http://example.com/price')
-        graph = rdflib.graph.Graph()
-        graph.add((test_subject1, Offering.resolve('rdf:type'),
-                   Offering.resolve('gr:Offering')))
-        graph.add((test_subject1, Offering.resolve('gr:hasPriceSpecification'),
-                   test_subject2))
-        graph.add((test_subject2, PriceSpecification.resolve('rdf:type'),
-                   PriceSpecification.resolve('gr:PriceSpecification')))
+        test_subject1 = NamedNode('http://example.com/offering')
+        test_subject2 = NamedNode('http://example.com/price')
+        graph = Graph()
+        graph.add(Triple(test_subject1, Offering.resolve('rdf:type'),
+                         Offering.resolve('gr:Offering')))
+        graph.add(Triple(test_subject1, Offering.resolve('gr:hasPriceSpecification'),
+                         test_subject2))
+        graph.add(Triple(test_subject2, PriceSpecification.resolve('rdf:type'),
+                         PriceSpecification.resolve('gr:PriceSpecification')))
         offering = Offering(graph, test_subject1)
         price_specification = PriceSpecification(graph, test_subject2)
         prices = set(offering['gr:hasPriceSpecification'])
@@ -513,13 +512,13 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        test_subject1 = rdflib.term.URIRef('http://example.com/offering')
-        test_subject2 = rdflib.term.URIRef('http://example.com/price')
-        graph = rdflib.graph.Graph()
-        graph.add((test_subject1, Offering.resolve('rdf:type'),
-                   Offering.resolve('gr:Offering')))
-        graph.add((test_subject2, PriceSpecification.resolve('rdf:type'),
-                   PriceSpecification.resolve('gr:PriceSpecification')))
+        test_subject1 = NamedNode('http://example.com/offering')
+        test_subject2 = NamedNode('http://example.com/price')
+        graph = Graph()
+        graph.add(Triple(test_subject1, Offering.resolve('rdf:type'),
+                         Offering.resolve('gr:Offering')))
+        graph.add(Triple(test_subject2, PriceSpecification.resolve('rdf:type'),
+                         PriceSpecification.resolve('gr:PriceSpecification')))
         offering = Offering(graph, test_subject1)
         price_specification = PriceSpecification(graph, test_subject2)
         before_prices = set(offering['gr:hasPriceSpecification'])
@@ -531,7 +530,7 @@ class TestRDF(unittest.TestCase):
     
     def testNewResource(self):
         """Test creating a new resource."""
-        graph = rdflib.graph.Graph()
+        graph = Graph()
         
         @pymantic.rdf.register_class('foaf:Person')
         class Person(pymantic.rdf.Resource):
@@ -539,7 +538,7 @@ class TestRDF(unittest.TestCase):
                 'foaf': 'http://xmlns.com/foaf/0.1/',
             }
         
-        test_subject = rdflib.term.URIRef('http://example.com/')
+        test_subject = NamedNode('http://example.com/')
         p = Person.new(graph, test_subject)
         
     def testGetAllResourcesInGraph(self):
@@ -552,27 +551,27 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        graph = rdflib.ConjunctiveGraph()
-        test_subject_base = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject_base = NamedNode('http://example.com/')
         for i in range(10):
-            graph.add((rdflib.term.URIRef(test_subject_base + str(i)),
-                       Offering.resolve('rdf:type'),
-                       Offering.resolve('gr:Offering')))
+            graph.add(Triple(NamedNode(test_subject_base + str(i)),
+                             Offering.resolve('rdf:type'),
+                             Offering.resolve('gr:Offering')))
         offerings = Offering.in_graph(graph)
         self.assertEqual(len(offerings), 10)
         for i in range(10):
-            this_subject = rdflib.term.URIRef(test_subject_base + str(i))
+            this_subject = NamedNode(test_subject_base + str(i))
             offering = Offering(graph, this_subject)
             self.assert_(offering in offerings)
     
     def testContained(self):
         """Test in against a multi-value predicate."""
-        graph = rdflib.graph.Graph()
-        test_subject1 = rdflib.term.URIRef('http://example.com/')
+        graph = Graph()
+        test_subject1 = NamedNode('http://example.com/')
         r = pymantic.rdf.Resource(graph, test_subject1)
         r['rdfs:example'] = set(('foo', 'bar'))
         self.assert_('rdfs:example' in r)
-        self.assert_(('rdfs:example', 'en') in r)
+        self.assertFalse(('rdfs:example', 'en') in r)
         self.assertFalse(('rdfs:example', 'fr') in r)
         self.assertFalse('rdfs:examplefoo' in r)
         del r['rdfs:example']
@@ -597,7 +596,7 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        graph = rdflib.ConjunctiveGraph()
+        graph = Graph()
         offering1 = Offering.new(graph, 'http://example.com/offering1')
         offering2 = Offering.new(graph, 'http://example.com/offering2')
         offering3 = Offering.new(graph, 'http://example.com/offering3')
@@ -622,35 +621,35 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        en = rdflib.Literal('foo', lang='en')
-        fr = rdflib.Literal('bar', lang='fr')
-        es = rdflib.Literal('baz', lang='es')
-        xsdstring = rdflib.Literal('aap', datatype=XSD['string'])
-        xsddecimal = rdflib.Literal('9.95', datatype=XSD['decimal'])
-        graph = rdflib.ConjunctiveGraph()
+        en = Literal('foo', language='en')
+        fr = Literal('bar', language='fr')
+        es = Literal('baz', language='es')
+        xsdstring = Literal('aap', datatype=XSD('string'))
+        xsddecimal = Literal('9.95', datatype=XSD('decimal'))
+        graph = Graph()
         offering = Offering.new(graph, 'http://example.com/offering')
         offering['gr:description'] = set((en, fr, es,))
-        self.assertEqual(frozenset(offering['gr:description']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description']), frozenset((en,fr,es,)))
         self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
         self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
         self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((en, fr, es,)))
         offering['gr:description'] = set((xsdstring, xsddecimal,))
-        self.assertEqual(frozenset(offering['gr:description', XSD['string']]),
+        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
                          frozenset((xsdstring,)))
-        self.assertEqual(frozenset(offering['gr:description', XSD['decimal']]),
+        self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((xsdstring, xsddecimal,)))
         offering['gr:description'] = set((en, fr, es, xsdstring, xsddecimal,))
-        self.assertEqual(frozenset(offering['gr:description']), frozenset((en,)))
+        self.assertEqual(frozenset(offering['gr:description']), frozenset((en, fr, es, xsdstring, xsddecimal,)))
         self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
         self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
         self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
-        self.assertEqual(frozenset(offering['gr:description', XSD['string']]),
+        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
                          frozenset((xsdstring,)))
-        self.assertEqual(frozenset(offering['gr:description', XSD['decimal']]),
+        self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((en, fr, es, xsdstring, xsddecimal,)))
@@ -666,10 +665,10 @@ class TestRDF(unittest.TestCase):
             
             scalars = frozenset(('gr:description',))
         
-        en = rdflib.Literal('foo', lang='en')
-        fr = rdflib.Literal('bar', lang='fr')
-        es = rdflib.Literal('baz', lang='es')
-        graph = rdflib.ConjunctiveGraph()
+        en = Literal('foo', language='en')
+        fr = Literal('bar', language='fr')
+        es = Literal('baz', language='es')
+        graph = Graph()
         offering = Offering.new(graph, 'http://example.com/offering')
         offering['gr:description'] = en
         offering['gr:description'] = fr
@@ -691,7 +690,7 @@ class TestRDF(unittest.TestCase):
             
             scalars = frozenset(('gr:name',))
         
-        graph = rdflib.ConjunctiveGraph()
+        graph = Graph()
         offering1 = Offering.new(graph, 'http://example.com/offering1')
         offering2 = Offering.new(graph, 'http://example.com/offering2')
         offering1['gr:name'] = 'Foo'
@@ -705,7 +704,7 @@ class TestRDF(unittest.TestCase):
         self.assert_(offering2.is_a())
         self.assertFalse(offering1['gr:name'])
         self.assertFalse(frozenset(offering1['gr:description']))
-        self.assertEqual(offering2['gr:name'], rdflib.Literal('Bar', lang='en'))
+        self.assertEqual(offering2['gr:name'], Literal('Bar', language='en'))
     
     def testUnboundClass(self):
         """Test classifying objects with one or more unbound classes."""
@@ -715,14 +714,14 @@ class TestRDF(unittest.TestCase):
                 'gr': 'http://purl.org/goodrelations/',
             }
         
-        graph = rdflib.ConjunctiveGraph()
-        funky_class = rdflib.URIRef('http://example.com/AFunkyClass')
-        funky_subject = rdflib.URIRef('http://example.com/aFunkyResource')
+        graph = Graph()
+        funky_class = NamedNode('http://example.com/AFunkyClass')
+        funky_subject = NamedNode('http://example.com/aFunkyResource')
         
         offering1 = Offering.new(graph, 'http://example.com/offering1')
-        graph.add((offering1.subject, RDF['type'], funky_class))
+        graph.add(Triple(offering1.subject, RDF('type'), funky_class))
         self.assertEqual(type(pymantic.rdf.Resource.classify(graph, offering1.subject)),
                          Offering)
-        graph.add((funky_subject, RDF['type'], funky_class))
+        graph.add(Triple(funky_subject, RDF('type'), funky_class))
         self.assertEqual(type(pymantic.rdf.Resource.classify(graph, funky_subject)),
                          pymantic.rdf.Resource)
