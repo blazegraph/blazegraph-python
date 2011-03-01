@@ -203,8 +203,7 @@ class Graph(object):
         self._triples = set()
         self._spo = Index()
         self._pos = Index()
-        self._ops = Index()
-        self._sop = Index()
+        self._osp = Index()
         
     @property
     def uri(self):
@@ -214,15 +213,13 @@ class Graph(object):
         self._triples.add(triple)
         self._spo[triple.subject][triple.predicate][triple.object] = triple
         self._pos[triple.predicate][triple.object][triple.subject] = triple
-        self._ops[triple.object][triple.predicate][triple.subject] = triple
-        self._sop[triple.subject][triple.object][triple.predicate] = triple
+        self._osp[triple.object][triple.subject][triple.predicate] = triple
         
     def remove(self, triple):
         self._triples.remove(triple)
         del self._spo[triple.subject][triple.predicate][triple.object]
         del self._pos[triple.predicate][triple.object][triple.subject]
-        del self._ops[triple.object][triple.predicate][triple.subject]
-        del self._sop[triple.subject][triple.object][triple.predicate]
+        del self._osp[triple.object][triple.subject][triple.predicate]
         
     def match(self, pattern):
         if pattern.subject:
@@ -235,7 +232,7 @@ class Graph(object):
                         yield triple
             else: # s, ?var, ???
                 if pattern.object: # s, ?var, o
-                    for triple in self._sop[pattern.subject][pattern.object].itervalues():
+                    for triple in self._osp[pattern.object][pattern.subject].itervalues():
                         yield triple
                 else: # s, ?var, ?var
                     for predicate in self._spo[pattern.subject]:
@@ -243,15 +240,15 @@ class Graph(object):
                             yield triple
         elif pattern.predicate: # ?var, p, ???
             if pattern.object: # ?var, p, o
-                for triple in self._ops[pattern.object][pattern.predicate].itervalues():
+                for triple in self._pos[pattern.predicate][pattern.object].itervalues():
                     yield triple
             else: # ?var, p, ?var
                 for object in self._pos[pattern.predicate]:
                     for triple in self._pos[pattern.predicate][object].itervalues():
                         yield triple
         elif pattern.object: # ?var, ?var, o
-            for predicate in self._ops[pattern.object]:
-                for triple in self._ops[pattern.object][predicate].itervalues():
+            for subject in self._osp[pattern.object]:
+                for triple in self._osp[pattern.object][subject].itervalues():
                     yield triple
         else:
             for triple in self._triples:
