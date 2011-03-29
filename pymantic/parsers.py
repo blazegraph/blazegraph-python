@@ -70,7 +70,15 @@ class BaseLeplParser(object):
         self._cleanup_parse()
         
         return sink
-
+    
+    def parse_string(self, string, sink = None):
+        if sink is None:
+            sink = self._make_graph()
+        self._prepare_parse(sink)
+        self.document.parse(string)
+        self._cleanup_parse()
+        
+        return sink
 
 class BaseNParser(BaseLeplParser):
     """Base parser that establishes common grammar rules and interfaces used for
@@ -176,22 +184,22 @@ class TurtleParser(BaseLeplParser):
         longString = And('"""', Star(lcharacter), '"""')
         string = And('"', Star(scharacter), '"')
         quotedString = string | longString
-        relativeURI = Star(ucharacter)
-        uriref = And('<', relativeURI, '>')
+        relativeURI = ucharacter[...]
+        uriref = And(~Literal('<'), relativeURI, ~Literal('>')) > 'uriref'
         
         # Whie space is not significant in the following rules.
         with Separator(~Star(Any(' \t\n\r'))):
             prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
             nameStartChar = prefixStartChar | "_"
             nameChar = nameStartChar | '-' | Regexp(ur'[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u203F-\u2040]')
-            name = nameStartChar & nameChar[:]
-            prefixName = prefixStartChar & nameChar[:]
+            name = (nameStartChar & nameChar[:])[...] > 'name'
+            prefixName = (prefixStartChar & nameChar[:])[...] > 'prefixName'
             language = Lower()[1:] & Regexp(r'-[a-z0-9]+')[:]
-            qname = Optional(prefixName) & ':' & Optional(name)
+            qname = ((Optional(prefixName) & ~Literal(':') & Optional(name) > dict) > self.resolve_prefix) > 'qname'
             nodeID = '_:' & name
-            resource = uriref | qname
+            resource = ((uriref | qname > dict) > self.make_named_node) > 'resource'
             comment = '#' & Star(AnyBut('\u000A\u000D'))
-            ws = Whitespace() or comment
+            ws = ~Whitespace() or ~comment
             
             blank = Delayed()
             integer = Regexp(r'(-|+)?[0-9]+')
@@ -204,10 +212,10 @@ class TurtleParser(BaseLeplParser):
                            integer,
                            decimal,
                            boolean )
-            object_ = resource | blank | literal
+            object_ = resource | blank | literal > 'object'
             predicate = resource
-            subject = resource | blank
-            verb = predicate | Literal('a')
+            subject = resource | blank > 'subject'
+            verb = predicate | Literal('a') > 'predicate'
             itemList = object_[1:]
             collection = Literal('(') & Optional(itemList) & Literal(')')
             objectList = object_ & (Literal(',') & object_)[:]
@@ -215,11 +223,34 @@ class TurtleParser(BaseLeplParser):
             blank += Or (nodeID, Literal('[') & Literal(']'), collection,
                          Literal('[') & predicateObjectList & Literal(']'))
             triples = subject & predicateObjectList
-            base = Literal('@base') & Plus(ws) & uriref
-            prefixId = Literal('@prefix') & Plus(ws) & Optional(prefixName) & ':' & uriref
+            base = (~Literal('@base') & Plus(ws) & uriref > dict) > self.record_base
+            prefixId = (~Literal('@prefix') & Plus(ws) & Optional(prefixName) & ~Literal(':') & uriref > dict) > self.record_prefix
             directive = prefixId | base
             statement = Or (directive & '.', triples & '.', Plus(ws))
             self.document = Star(statement)
+    
+    def _prepare_parse(self, graph):
+        super(TurtleParser, self)._prepare_parse(graph)
+        self._call_state.prefixes = {}
+        self._call_state.base_uri = None
+    
+    def record_base(self, values):
+        self._call_state.base_uri = values[0]['uriref']
+        return ''
+    
+    def record_prefix(self, values):
+        prefix = values[0]
+        self._call_state.prefixes[prefix.get('prefixName', '')] = prefix['uriref']
+        return ''
+    
+    def resolve_prefix(self, values):
+        qname = values[0]
+        return self._call_state.prefixes[qname.get('prefixName', '')] + qname.get('name', '')
+    
+    def make_named_node(self, values):
+        resource = values[0]
+        return super(TurtleParser, self).make_named_node(
+            (resource.get('uriref') or resource.get('qname'),))
         
 def parse_turtle(f, graph = None):
     parser = TurtleParser()
