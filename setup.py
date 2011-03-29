@@ -24,7 +24,6 @@ setup(name='pymantic',
       zip_safe=True,
       test_suite='nose.collector',
       install_requires=[
-          "rdflib>=3.0.0",
           'httplib2',
           'lxml',
           'mock_http',
