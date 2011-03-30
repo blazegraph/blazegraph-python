@@ -210,15 +210,16 @@ class TurtleParser(BaseLeplParser):
             
             blank = Delayed()
             integer = Regexp(r'(?:-|\+)?[0-9]+') > self.make_integer_literal
-            decimal = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*|\.(?:[0-9])+|(?:[0-9])+)') > self.make_decimal_literal
-            #exponent = r'[eE](?:-|\+)?[0-9]+'
-            #double = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*' + exponent + r'|\.[0-9]+' + exponent + r'|[0-9]+' + exponent + ')') > self.make_double_literal
+            decimal = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*|\.(?:[0-9])+)') > self.make_decimal_literal
+            exponent = r'[eE](?:-|\+)?[0-9]+'
+            double = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*' + exponent + r'|\.[0-9]+' + exponent + r'|[0-9]+' + exponent + ')') > self.make_double_literal
             boolean = Literal('true') | Literal('false') > self.make_boolean_literal
             datatypeString = quotedString & "^^" & (resource > 'dataType') > self.make_datatype_literal
             literal = Or ( datatypeString,
                            quotedString & Optional(~Literal('@') & language) > self.make_language_literal,
-                           integer,
+                           double,
                            decimal,
+                           integer,
                            boolean )
             object_ = resource | blank | literal
             predicate = resource
