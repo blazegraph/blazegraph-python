@@ -170,6 +170,11 @@ class TurtleParser(BaseLeplParser):
         
         self.absolute_uri_re = re.compile('^[^/]+:')
         
+        from pymantic.primitives import Namespace
+        
+        self.rdf = Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#')
+        self.xsd = Namespace('http://www.w3.org/2001/XMLSchema#')
+        
         # White space is significant in the following rules.
         hex_ = Any('0123456789ABCDEF')
         character_escape = Or(And(Literal('r\u'), hex_[4]),
@@ -177,22 +182,22 @@ class TurtleParser(BaseLeplParser):
                               Literal(r'\\'))
         character = Or(character_escape,
                        Regexp(ur'[\u0020-\u005B\]-\U0010FFFF]'))
-        echaracter = character | Any(r'\t\n\r')
+        echaracter = character | Any('\t\n\r')
         ucharacter = Or(character_escape,
                         Regexp(ur'[\u0020-\u003D\u003F-\u005B\]-\U0010FFFF]')) | r'\>'
         scharacter = Or(character_escape,
                         Regexp(ur'[\u0020-\u0021\u0023-\u005B\]-\U0010FFFF]')) | r'\"'
         lcharacter = echaracter | '\"' | '\u009' | '\u000A' | '\u000D'
-        longString = And('"""', Star(lcharacter), '"""')
-        string = And('"', Star(scharacter), '"')
-        quotedString = string | longString
+        longString = ~Literal('"""') & lcharacter[:,...] & ~Literal('"""')
+        string = ~Literal('"') & scharacter[:,...] & ~Literal('"')
+        quotedString = longString | string > 'quotedString'
         relativeURI = ucharacter[...]
         prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
         nameStartChar = prefixStartChar | "_"
         nameChar = nameStartChar | '-' | Regexp(ur'[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u203F-\u2040]')
         name = (nameStartChar & nameChar[:])[...] > 'name'
         prefixName = (prefixStartChar & nameChar[:])[...] > 'prefixName'
-        language = Lower()[1:] & Regexp(r'-[a-z0-9]+')[:]
+        language = Regexp(r'[a-z]+ (?:-[a-z0-9]+)*') > 'language'
         qname = ((Optional(prefixName) & ~Literal(':') & Optional(name) > dict) > self.resolve_prefix) > 'qname'        
         nodeID = ~Literal('_:') & name > self.make_blank_node
         
@@ -204,13 +209,14 @@ class TurtleParser(BaseLeplParser):
             ws = ~Whitespace() or ~comment
             
             blank = Delayed()
-            integer = Regexp(r'(-|+)?[0-9]+')
-            decimal = Regexp(r'(-|+)?([0-9]+\.[0-9]*|\.([0-9])+|([0-9])+)')
-            exponent = Regexp(r'[eE](-|+)?[0-9]+')
-            boolean = Literal('true') | Literal('false')
-            datatypeString = quotedString & "^^" & resource
-            literal = Or ( quotedString & Optional('@' & language), 
-                           datatypeString,
+            integer = Regexp(r'(?:-|\+)?[0-9]+') > self.make_integer_literal
+            decimal = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*|\.(?:[0-9])+|(?:[0-9])+)') > self.make_decimal_literal
+            #exponent = r'[eE](?:-|\+)?[0-9]+'
+            #double = Regexp(r'(?:-|\+)?(?:[0-9]+\.[0-9]*' + exponent + r'|\.[0-9]+' + exponent + r'|[0-9]+' + exponent + ')') > self.make_double_literal
+            boolean = Literal('true') | Literal('false') > self.make_boolean_literal
+            datatypeString = quotedString & "^^" & (resource > 'dataType') > self.make_datatype_literal
+            literal = Or ( datatypeString,
+                           quotedString & Optional(~Literal('@') & language) > self.make_language_literal,
                            integer,
                            decimal,
                            boolean )
@@ -218,8 +224,7 @@ class TurtleParser(BaseLeplParser):
             predicate = resource
             subject = resource | blank > 'subject'
             verb = predicate | Literal('a') > 'predicate'
-            itemList = object_[1:]
-            collection = ~Literal('(') & Optional(itemList) & ~Literal(')')
+            collection = ~Literal('(') & object_[:] & ~Literal(')') > self.make_collection
             objectList = (object_ & (~Literal(',') & object_)[:] > List) > 'objectList'
             predicateObjectList = ((verb & objectList > Node) & (~Literal(';') & (verb & objectList > Node))[:] & ~Optional(';') > List) > 'predicateObjectList'
             blank += Or (nodeID, collection,
@@ -275,9 +280,46 @@ class TurtleParser(BaseLeplParser):
                 self._call_state.graph.add(Triple(subject, predicate, object_))
         return subject
     
+    def make_collection(self, values):
+        from pymantic.primitives import BlankNode, Triple
+        prior = self.rdf('nil')
+        for element in reversed(values):
+            this = BlankNode()
+            self._call_state.graph.add(Triple(this, self.rdf('first'), element))
+            self._call_state.graph.add(Triple(this, self.rdf('rest'), prior))
+            prior = this
+        return prior
+    
     def _make_graph(self):
         from pymantic.primitives import Graph
         return Graph()
+    
+    def make_datatype_literal(self, values):
+        from pymantic.primitives import Literal
+        datatyped = dict(values)
+        return Literal(datatyped['quotedString'], datatype = datatyped['dataType'])
+    
+    def make_integer_literal(self, values):
+        from pymantic.primitives import Literal
+        return Literal(values[0], datatype = self.xsd('integer'))
+    
+    def make_decimal_literal(self, values):
+        from pymantic.primitives import Literal
+        return Literal(values[0], datatype = self.xsd('decimal'))
+    
+    def make_double_literal(self, values):
+        from pymantic.primitives import Literal
+        return Literal(values[0], datatype = self.xsd('double'))
+    
+    def make_boolean_literal(self, values):
+        from pymantic.primitives import Literal
+        return Literal(values[0], datatype = self.xsd('boolean'))
+    
+    def make_language_literal(self, values):
+        print values
+        from pymantic.primitives import Literal
+        languageable = dict(values)
+        return Literal(languageable['quotedString'], language = languageable.get('language'))
 
 def parse_turtle(f, graph = None):
     parser = TurtleParser()
