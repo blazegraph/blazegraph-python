@@ -1,31 +1,45 @@
-.. Pymantic documentation master file, created by
-   sphinx-quickstart on Fri Sep  3 13:38:21 2010.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. _index:
 
-Welcome to Pymantic's documentation!
-====================================
+********
+Pymantic
+********
 
-Contents:
+Pymantic is a pythonic and easy-to-use library for working with `Resource Description Framework (RDF) <http://www.w3.org/RDF/>`_ data.
 
-.. toctree::
-   :maxdepth: 2
-   
-Module Listing
---------------
+Examples
+========
 
-.. toctree::
-    :maxdepth: 2
+
+Reading RDF data in N-Triples
+-----------------------------
+.. doctest::
+
+    from pymantic.parsers import *
     
-    modules/RDF
-    modules/SPARQL
-    modules/util
+    with open("triples.nt") as f:
+        graph = parse_ntriples(f)
 
 
-Indices and tables
-==================
+.. _getting_involved:
 
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+Getting Involved
+================
 
+
+GitHub project page
+-------------------
+
+Fork it, add features, wallow in the code, find out what is being worked on
+
+`github.com/norcalrdf/pymantic <https://github.com/norcalrdf/pymantic>`_.
+
+Feedback (Bugs)
+---------------
+
+Submit bugs in our `issue tracker <https://github.com/norcalrdf/pymantic/issues>`_.
+
+Discuss
+-------
+
+* `pymantic users mailing list <http://groups.google.com/group/pymantic-users>`_.
+* `pymantic development mailing list <http://groups.google.com/group/pymantic-developers>`_.
