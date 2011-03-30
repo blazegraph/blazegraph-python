@@ -168,6 +168,8 @@ class TurtleParser(BaseLeplParser):
     def __init__(self):
         super(TurtleParser, self).__init__()
         
+        self.absolute_uri_re = re.compile('^[^/]+:')
+        
         # White space is significant in the following rules.
         hex_ = Any('0123456789ABCDEF')
         character_escape = Or(And(Literal('r\u'), hex_[4]),
@@ -185,19 +187,19 @@ class TurtleParser(BaseLeplParser):
         string = And('"', Star(scharacter), '"')
         quotedString = string | longString
         relativeURI = ucharacter[...]
-        uriref = And(~Literal('<'), relativeURI, ~Literal('>')) > 'uriref'
+        prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
+        nameStartChar = prefixStartChar | "_"
+        nameChar = nameStartChar | '-' | Regexp(ur'[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u203F-\u2040]')
+        name = (nameStartChar & nameChar[:])[...] > 'name'
+        prefixName = (prefixStartChar & nameChar[:])[...] > 'prefixName'
+        language = Lower()[1:] & Regexp(r'-[a-z0-9]+')[:]
+        qname = ((Optional(prefixName) & ~Literal(':') & Optional(name) > dict) > self.resolve_prefix) > 'qname'        
+        nodeID = ~Literal('_:') & name > self.make_blank_node
         
         # Whie space is not significant in the following rules.
         with Separator(~Star(Any(' \t\n\r'))):
-            prefixStartChar = Regexp(ur'[A-Z]') | Regexp(ur'[a-z]') | Regexp(ur'[\u00C0-\u00D6]') | Regexp(ur'[\u00D8-\u00F6]') | Regexp(ur'[\u00F8-\u02FF]') | Regexp(ur'[\u0370-\u037D]') | Regexp(ur'[\u037F-\u1FFF]') | Regexp(ur'[\u200C-\u200D]') | Regexp(ur'[\u2070-\u218F]') | Regexp(ur'[\u2C00-\u2FEF]') | Regexp(ur'[\u3001-\uD7FF]') | Regexp(ur'[\uF900-\uFDCF]') | Regexp(ur'[\uFDF0-\uFFFD]') | Regexp(ur'[\U00010000-\U000EFFFF]')
-            nameStartChar = prefixStartChar | "_"
-            nameChar = nameStartChar | '-' | Regexp(ur'[0-9]') | '\u00B7' | Regexp(ur'[\u0300-\u036F]') | Regexp(ur'[\u203F-\u2040]')
-            name = (nameStartChar & nameChar[:])[...] > 'name'
-            prefixName = (prefixStartChar & nameChar[:])[...] > 'prefixName'
-            language = Lower()[1:] & Regexp(r'-[a-z0-9]+')[:]
-            qname = ((Optional(prefixName) & ~Literal(':') & Optional(name) > dict) > self.resolve_prefix) > 'qname'
-            nodeID = '_:' & name
-            resource = ((uriref | qname > dict) > self.make_named_node) > 'resource'
+            uriref = (And(~Literal('<'), relativeURI, ~Literal('>')) > self.resolve_relative_uri) > 'uriref'
+            resource = (uriref | qname > dict) > self.make_named_node
             comment = '#' & Star(AnyBut('\u000A\u000D'))
             ws = ~Whitespace() or ~comment
             
@@ -212,17 +214,19 @@ class TurtleParser(BaseLeplParser):
                            integer,
                            decimal,
                            boolean )
-            object_ = resource | blank | literal > 'object'
+            object_ = resource | blank | literal
             predicate = resource
             subject = resource | blank > 'subject'
             verb = predicate | Literal('a') > 'predicate'
             itemList = object_[1:]
-            collection = Literal('(') & Optional(itemList) & Literal(')')
-            objectList = object_ & (Literal(',') & object_)[:]
-            predicateObjectList = verb & objectList & (Literal(';') & verb & objectList)[:] & Optional(';')
-            blank += Or (nodeID, Literal('[') & Literal(']'), collection,
-                         Literal('[') & predicateObjectList & Literal(']'))
-            triples = subject & predicateObjectList
+            collection = ~Literal('(') & Optional(itemList) & ~Literal(')')
+            objectList = (object_ & (~Literal(',') & object_)[:] > List) > 'objectList'
+            predicateObjectList = ((verb & objectList > Node) & (~Literal(';') & (verb & objectList > Node))[:] & ~Optional(';') > List) > 'predicateObjectList'
+            blank += Or (nodeID, collection,
+                         (~Literal('[') & ~Literal(']') > self.make_triples),
+                         (~Literal('[') & predicateObjectList & ~Literal(']') > self.make_triples)
+                         )
+            triples = subject & predicateObjectList > self.make_triples
             base = (~Literal('@base') & Plus(ws) & uriref > dict) > self.record_base
             prefixId = (~Literal('@prefix') & Plus(ws) & Optional(prefixName) & ~Literal(':') & uriref > dict) > self.record_prefix
             directive = prefixId | base
@@ -243,6 +247,13 @@ class TurtleParser(BaseLeplParser):
         self._call_state.prefixes[prefix.get('prefixName', '')] = prefix['uriref']
         return ''
     
+    def resolve_relative_uri(self, values):
+        relative_uri = values[0]
+        if self.absolute_uri_re.match(relative_uri):
+            return relative_uri
+        else:
+            return self._call_state.base_uri + relative_uri
+    
     def resolve_prefix(self, values):
         qname = values[0]
         return self._call_state.prefixes[qname.get('prefixName', '')] + qname.get('name', '')
@@ -251,7 +262,23 @@ class TurtleParser(BaseLeplParser):
         resource = values[0]
         return super(TurtleParser, self).make_named_node(
             (resource.get('uriref') or resource.get('qname'),))
-        
+    
+    def make_triples(self, values):
+        from pymantic.primitives import Triple, BlankNode
+        triples = dict(values)
+        subject = triples.get('subject')
+        if not subject:
+            subject = BlankNode()
+        for predicate_object_node in triples.get('predicateObjectList', ()):
+            predicate = predicate_object_node.predicate[0]
+            for object_ in predicate_object_node.objectList[0]:
+                self._call_state.graph.add(Triple(subject, predicate, object_))
+        return subject
+    
+    def _make_graph(self):
+        from pymantic.primitives import Graph
+        return Graph()
+
 def parse_turtle(f, graph = None):
     parser = TurtleParser()
     return parser.parse(f, graph)
