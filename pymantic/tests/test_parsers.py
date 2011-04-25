@@ -9,7 +9,7 @@ def test_parse_ntriples_named_nodes():
 <http://example.com/objects/2> <http://example.com/predicates/2> <http://example.com/objects/1> .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     assert Triple(NamedNode('http://example.com/objects/1'),
                   NamedNode('http://example.com/predicates/1'),
@@ -23,7 +23,7 @@ def test_parse_ntriples_bare_literals():
 <http://example.com/objects/2> <http://example.com/predicates/2> "Bar" .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     assert Triple(NamedNode('http://example.com/objects/1'),
                   NamedNode('http://example.com/predicates/1'),
@@ -37,7 +37,7 @@ def test_parse_ntriples_language_literals():
 <http://example.com/objects/2> <http://example.com/predicates/2> "Bar"@fr .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     assert Triple(NamedNode('http://example.com/objects/1'),
                   NamedNode('http://example.com/predicates/1'),
@@ -51,7 +51,7 @@ def test_parse_ntriples_datatyped_literals():
 <http://example.com/objects/2> <http://example.com/predicates/2> "9.99"^^<http://www.w3.org/2001/XMLSchema#decimal> .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     assert Triple(NamedNode('http://example.com/objects/1'),
                   NamedNode('http://example.com/predicates/1'),
@@ -65,7 +65,7 @@ def test_parse_ntriples_mixed_literals():
 <http://example.com/objects/2> <http://example.com/predicates/2> "9.99"^^<http://www.w3.org/2001/XMLSchema#decimal> .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     assert Triple(NamedNode('http://example.com/objects/1'),
                   NamedNode('http://example.com/predicates/1'),
@@ -79,7 +79,7 @@ def test_parse_ntriples_bnodes():
 _:A1 <http://example.com/predicates/2> <http://example.com/objects/1> .
 """
     g = Graph()
-    parse_ntriples(StringIO(test_ntriples), g)
+    ntriples_parser.parse(StringIO(test_ntriples), g)
     assert len(g) == 2
     #assert Triple(NamedNode('http://example.com/objects/1'),
                   #NamedNode('http://example.com/predicates/1'),
@@ -89,7 +89,6 @@ _:A1 <http://example.com/predicates/2> <http://example.com/objects/1> .
                   #NamedNode('http://example.com/objects/1')) in g
                   
 def test_parse_turtle_example_1():
-    raise SkipTest
     ttl = """@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix dc: <http://purl.org/dc/elements/1.1/> .
 @prefix ex: <http://example.org/stuff/1.0/> .
@@ -101,6 +100,6 @@ def test_parse_turtle_example_1():
     ex:homePage <http://purl.org/net/dajobe/>
   ] ."""
     g = Graph()
-    parse_turtle(StringIO(ttl), g)
+    turtle_parser.parse(StringIO(ttl), g)
     assert len(g) == 4
 

@@ -1,5 +1,4 @@
-__all__ = ['NTriplesParser', 'parse_ntriples', 'NQuadsParser', 'parse_nquads', 
-           'parse_turtle']
+__all__ = ['ntriples_parser', 'nquads_parser', 'turtle_parser']
 
 from lepl import *
 from lxml import etree
@@ -131,9 +130,7 @@ class NTriplesParser(BaseNParser):
     def parse(self, f, graph):
         return super(NTriplesParser, self).parse(f, graph)
 
-def parse_ntriples(f, graph = None):
-    parser = NTriplesParser()
-    return parser.parse(f, graph)
+ntriples_parser = NTriplesParser()
 
 class NQuadsParser(BaseNParser):
     def make_quad(self, values):
@@ -143,7 +140,7 @@ class NQuadsParser(BaseNParser):
         return quad
 
     def __init__(self):
-        super(NTripleParser, self).__init__()
+        super(NQuadsParser, self).__init__()
         self.graph_name = self.uriref
         self.quad = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) &\
             self.object_ & ~Plus(Space()) & self.graph_name & ~Star(Space()) &\
@@ -158,10 +155,7 @@ class NQuadsParser(BaseNParser):
     def parse(self, f, dataset):
         return super(NQuadsParser, self).parse(f, dataset)
 
-def parse_nquads(f, dataset = None):
-    parser = NQuadsParser()
-    return parser.parse(f, dataset)
-
+nquads_parser = NQuadsParser()
 
 class TurtleParser(BaseLeplParser):
     
@@ -322,9 +316,7 @@ class TurtleParser(BaseLeplParser):
         languageable = dict(values)
         return Literal(languageable['quotedString'], language = languageable.get('language'))
 
-def parse_turtle(f, graph = None):
-    parser = TurtleParser()
-    return parser.parse(f, graph)
+turtle_parser = TurtleParser()
 
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 
