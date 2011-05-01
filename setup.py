@@ -1,7 +1,17 @@
-from setuptools import setup, find_packages
 import sys, os
 
+try:
+    import Cython
+except ImportError:
+    pass
+
+from setuptools import setup
+
 from pymantic import version
+
+import setupinfo
+
+from Cython.Distutils import build_ext
 
 setup(name='pymantic',
       version=version,
@@ -19,9 +29,9 @@ setup(name='pymantic',
       author_email='gavin@carothers.name, npilon@gmail.com',
       url='http://github.com/oreillymedia/pymantic',
       license='BSD',
-      packages=find_packages(exclude=[]),
+      packages=['pymantic'],
       include_package_data=True,
-      zip_safe=True,
+      zip_safe=False,
       test_suite='nose.collector',
       install_requires=[
           'httplib2',
@@ -36,5 +46,7 @@ setup(name='pymantic',
       """,
       scripts = [
           'pymantic/scripts/named_graph_to_nquads',
-      ]
-      )
+      ],
+      ext_modules = setupinfo.ext_modules(),
+      **setupinfo.extra_setup_args()
+)
