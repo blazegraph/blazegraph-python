@@ -10,4 +10,5 @@ def parse(graph, content, **kwargs):
     with raptor_world() as world:
         if 'name' in kwargs:
             parser = RaptorParser(world, **kwargs)
+            parser.parse(graph, content)
 
