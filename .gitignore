@@ -1,2 +1,3 @@
 pymantic.egg-info
 *.pyc
+*.so
