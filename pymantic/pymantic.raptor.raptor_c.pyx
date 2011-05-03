@@ -8,8 +8,13 @@ cdef extern from "raptor2/raptor.h":
     ctypedef struct raptor_parser:
         pass
     
+    ctypedef struct raptor_statement:
+        pass
+    
     raptor_parser *raptor_new_parser(raptor_world *, char *)
     void raptor_free_parser(raptor_parser *)
+    void raptor_parser_set_statement_handler(raptor_parser *, void *,
+                                             void (*)(void*, raptor_statement*))
 
 cdef class RaptorWorld:
     cdef raptor_world *_world
@@ -20,12 +25,23 @@ cdef class RaptorWorld:
     def __dealloc__(self):
         raptor_free_world(self._world)
 
+cdef void parser_statement_handler(void *user, raptor_statement *statement):
+    graph = <object>user
+
 cdef class RaptorParser:
     cdef raptor_parser *parser
     
     def __cinit__(self, RaptorWorld world, **kwargs):
         if 'name' in kwargs:
             self.parser = raptor_new_parser(world._world, kwargs['name'])
+    
+    def parse(self, graph, content, base_uri):
+        raptor_parser_set_statement_handler(self.parser, <void *>graph,
+                                            parser_statement_handler)
+        raptor_parser_parse_start(self.parser, base_uri)
+        content = content.read()
+        raptor_parser_parse_chunk(self.parser, content, len(content), 0)
+        raptor_parser_parse_chunk(self.parser, NULL, 0, 1)
     
     def __dealloc__(self):
         raptor_free_parser(self.parser)
