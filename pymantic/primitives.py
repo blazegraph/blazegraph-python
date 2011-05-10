@@ -50,7 +50,10 @@ class Triple(tuple):
     object = property(itemgetter(2))
     
     def __str__(self):
-        return str(self.subject) + ' ' + str(self.predicate) + ' ' + str(self.object) + ' .\n'
+        return self.subject.toNT() + ' ' + self.predicate.toNT() + ' ' + self.object.toNT() + ' .\n'
+    
+    def toString(self):
+        return str(self)
         
 class Quad(tuple):
     'Quad(graph, subject, predicate, object)' 
@@ -152,6 +155,9 @@ class Literal(tuple):
     interfaceName = "Literal"
     
     def __str__(self):
+        return unicode(self.value)
+        
+    def toNT(self):
         quoted = '"' + nt_escape(self.value) + '"'
         if self.language:
             return quoted + '@' + self.language
@@ -160,6 +166,7 @@ class Literal(tuple):
         else:
             return quoted
 
+
 class NamedNode(unicode):
     
     interfaceName = "NamedNode"
@@ -167,18 +174,24 @@ class NamedNode(unicode):
     @property
     def value(self):
         return self
-    
+        
     def __repr__(self):
-        return 'NamedNode(' + super(NamedNode, self).__repr__() + ')'
+        return 'NamedNode(' + self.toNT() + ')'
     
     def __str__(self):
+        return self.value
+    
+    def toNT(self):
         return '<' + nt_escape(quote_normalized_iri(self.value)) + '>'
+    
 
 class Namespace(NamedNode):
     def __call__(self, name):
         return NamedNode(self + name)
 
 class BlankNode(object):
+    
+    interfaceName = "BlankNode"
 
     @property
     def value(self):
@@ -189,6 +202,9 @@ class BlankNode(object):
 
     def __str__(self):
         return '_:' + self.value
+    
+    def toNT(self):
+        return str(self)
     
 from collections import defaultdict
 def Index():
@@ -204,56 +220,106 @@ class Graph(object):
         self._spo = Index()
         self._pos = Index()
         self._osp = Index()
+        self._actions = set()
         
     @property
     def uri(self):
         return self._uri
     
+    def addAction(self, action):
+        self._actions.add(action)
+        return self
+    
     def add(self, triple):
+        """Adds the specified Triple to the graph. This method returns the graph
+        instance it was called on."""
         self._triples.add(triple)
         self._spo[triple.subject][triple.predicate][triple.object] = triple
         self._pos[triple.predicate][triple.object][triple.subject] = triple
         self._osp[triple.object][triple.subject][triple.predicate] = triple
+        return self
         
     def remove(self, triple):
+        """Removes the specified Triple from the graph. This method returns the 
+        graph instance it was called on."""
         self._triples.remove(triple)
         del self._spo[triple.subject][triple.predicate][triple.object]
         del self._pos[triple.predicate][triple.object][triple.subject]
         del self._osp[triple.object][triple.subject][triple.predicate]
+        return self
         
-    def match(self, pattern):
-        if pattern.subject:
-            if pattern.predicate: # s, p, ???
-                if pattern.object: # s, p, o
-                    if pattern in self:
-                        yield pattern
+    def match(self, subject, predicate, object):
+        """This method returns a new sequence of triples which is comprised of 
+        all those triples in the current instance which match the given 
+        arguments, that is, for each triple in this graph, it is included in the
+        output graph, if:
+        
+        * calling triple.subject.equals with the specified subject as an 
+        argument returns true, or the subject argument is null, AND
+        * calling triple.property.equals with the specified property as an 
+        argument returns true, or the property argument is null, AND
+        * calling triple.object.equals with the specified object as an argument
+        returns true, or the object argument is null
+            
+        This method implements AND functionality, so only triples matching all 
+        of the given non-null arguments will be included in the result.
+        """
+        if subject:
+            if predicate: # s, p, ???
+                if object: # s, p, o
+                    if Triple(subject, predicate, object) in self:
+                        yield Triple(subject, predicate, object)
                 else: # s, p, ?var
-                    for triple in self._spo[pattern.subject][pattern.predicate].itervalues():
+                    for triple in self._spo[subject][predicate].itervalues():
                         yield triple
             else: # s, ?var, ???
-                if pattern.object: # s, ?var, o
-                    for triple in self._osp[pattern.object][pattern.subject].itervalues():
+                if object: # s, ?var, o
+                    for triple in self._osp[object][subject].itervalues():
                         yield triple
                 else: # s, ?var, ?var
-                    for predicate in self._spo[pattern.subject]:
-                        for triple in self._spo[pattern.subject][predicate].itervalues():
+                    for predicate in self._spo[subject]:
+                        for triple in self._spo[subject][predicate].itervalues():
                             yield triple
-        elif pattern.predicate: # ?var, p, ???
-            if pattern.object: # ?var, p, o
-                for triple in self._pos[pattern.predicate][pattern.object].itervalues():
+        elif predicate: # ?var, p, ???
+            if object: # ?var, p, o
+                for triple in self._pos[predicate][object].itervalues():
                     yield triple
             else: # ?var, p, ?var
-                for object in self._pos[pattern.predicate]:
-                    for triple in self._pos[pattern.predicate][object].itervalues():
+                for object in self._pos[predicate]:
+                    for triple in self._pos[predicate][object].itervalues():
                         yield triple
-        elif pattern.object: # ?var, ?var, o
-            for subject in self._osp[pattern.object]:
-                for triple in self._osp[pattern.object][subject].itervalues():
+        elif object: # ?var, ?var, o
+            for subject in self._osp[object]:
+                for triple in self._osp[object][subject].itervalues():
                     yield triple
         else:
             for triple in self._triples:
                 yield triple
 
+    def removeMatches(self, subject, predicate, object):
+        """This method removes those triples in the current graph which match 
+        the given arguments."""
+        for triple in self.match(subject, predicate, object):
+            self.remove(triple)
+        return self
+
+    def addAll(self, graph_or_triples):
+        """Imports the graph or set of triples in to this graph. This method 
+        returns the graph instance it was called on."""
+        for triple in graph_or_triples:
+            self.add(triple)
+        return self
+    
+    def merge(self, graph):
+        """Returns a new Graph which is a concatenation of this graph and the 
+        graph given as an argument."""
+        new_graph = Graph()
+        for triple in graph:
+            new_graph.add(triple)
+        for triple in self:
+            new_graph.add(triple)
+        return new_graph
+            
     def __contains__(self, item):
         return item in self._triples
     
@@ -265,6 +331,10 @@ class Graph(object):
     
     def toArray(self):
         return frozenset(self._triples)
+    
+    
+            
+        
 
 class Dataset(object):
     
@@ -293,16 +363,14 @@ class Dataset(object):
     def graphs(self):
         return self._graphs.values()
     
-    def match(self, item):
-        if hasattr(item, "graph") and item.graph:
-            quad_pattern = item
-            matches = self._graphs[quad_pattern.graph].match(q_as_t(quad_pattern))
+    def match(self, graph, subject, predicate, object):
+        if graph:
+            matches = self._graphs[graph].match(subject, predicate, object)
             for match in matches:
-                yield t_as_q(quad_pattern.graph, match)
+                yield t_as_q(graph, match)
         else:
-            triple_pattern = item
             for graph_uri, graph in self._graphs.iteritems():
-                for match in graph.match(triple_pattern):
+                for match in graph.match(subject, predicate, object):
                     yield t_as_q(graph_uri, match)
     
     def __len__(self):

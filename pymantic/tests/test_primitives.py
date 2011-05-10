@@ -22,49 +22,49 @@ def test_match_VVV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(None, None, None))
+    matches = g.match(None, None, None)
     assert t in matches
 
 def test_match_sVV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(NamedNode("http://example.com"), None, None))
+    matches = g.match(NamedNode("http://example.com"), None, None)
     assert t in matches
     
 def test_match_sVo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(NamedNode("http://example.com"), None, en("Never!")))
+    matches = g.match(NamedNode("http://example.com"), None, en("Never!"))
     assert t in matches
     
 def test_match_spV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"), None))
+    matches = g.match(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"), None)
     assert t in matches
     
 def test_match_Vpo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(None, NamedNode("http://purl.org/dc/terms/issued"), en("Never!")))
+    matches = g.match(None, NamedNode("http://purl.org/dc/terms/issued"), en("Never!"))
     assert t in matches
     
 def test_match_VVo_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(None, None, en("Never!")))
+    matches = g.match(None, None, en("Never!"))
     assert t in matches
 
 def test_match_VpV_pattern():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()
     g.add(t)
-    matches = g.match(Triple(None, NamedNode("http://purl.org/dc/terms/issued"), None))
+    matches = g.match(None, NamedNode("http://purl.org/dc/terms/issued"), None)
     assert t in matches
     
 def generate_triples(n=10):
@@ -79,9 +79,9 @@ def test_10000_triples():
     for t in generate_triples(n):
         g.add(t)
     assert len(g) > n * .9
-    matches = g.match(Triple(NamedNode("http://example.com/42"), None, None))
-    matches = g.match(Triple(None, NamedNode("http://example/terms/42"), None))
-    matches = g.match(Triple(None, None, Literal(42)))
+    matches = g.match(NamedNode("http://example.com/42"), None, None)
+    matches = g.match(None, NamedNode("http://example/terms/42"), None)
+    matches = g.match(None, None, Literal(42))
 
 def test_iter_10000_triples():
     n = 10000
@@ -122,7 +122,7 @@ def test_match_ds_sVV_pattern():
              NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"))
     ds = Dataset()
     ds.add(q)
-    matches = ds.match(Triple(NamedNode("http://example.com"), None, None))
+    matches = ds.match(None, NamedNode("http://example.com"), None, None)
     assert q in matches
     
 def test_match_ds_quad_pattern():
@@ -130,7 +130,7 @@ def test_match_ds_quad_pattern():
              NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"))
     ds = Dataset()
     ds.add(q)
-    matches = ds.match(Quad("http://example.com/graph", None ,None, None))
+    matches = ds.match("http://example.com/graph", None ,None, None)
     assert q in matches
     
 def test_add_graph():
@@ -154,7 +154,7 @@ def test_10000_quads():
     for q in generate_quads(n):
         ds.add(q)
     assert len(ds) > n * .9
-    matches = ds.match(Quad(NamedNode("http://example/graph/42"),NamedNode("http://example.com/42"), None, None))
+    matches = ds.match(NamedNode("http://example/graph/42"),NamedNode("http://example.com/42"), None, None)
 
 def test_iter_10000_quads():
     n = 10000

@@ -195,7 +195,7 @@ class Resource(object):
     
     def erase(self):
         """Erase all tripes for this resource from the graph."""
-        for triple in list(self.graph.match(Triple(self.subject, None, None))):
+        for triple in list(self.graph.match(self.subject, None, None)):
             self.graph.remove(triple)
     
     def is_a(self):
@@ -203,9 +203,9 @@ class Resource(object):
         RDF classes applied to it."""
         if hasattr(self, 'rdf_classes'):
             for rdf_class in self.rdf_classes:
-                if not any(self.graph.match(Triple(self.subject, 
+                if not any(self.graph.match(self.subject, 
                                                    self.resolve('rdf:type'),
-                                                   rdf_class))):
+                                                   rdf_class)):
                     return False
         return True
         
@@ -223,14 +223,18 @@ class Resource(object):
         return NotImplemented
     
     def __ne__(self, other):
-        return not self.__eq__(other)
+        eq = self.__eq__(other)
+        if eq is NotImplemented:
+            return NotImplemented
+        else:
+            return not eq
     
     def __hash__(self):
         return hash(self.subject)
     
     def bare_literals(self, predicate):
         """Objects for a predicate that are language-less, datatype-less Literals."""
-        return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+        return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                 hasattr(t.object, 'language') and t.object.language is None and\
                 hasattr(t.object, 'datatype') and t.object.datatype is None]
     
@@ -238,27 +242,27 @@ class Resource(object):
         """Objects for a predicate that match a specified language or, if
         language is None, have a language specified."""
         if lang:
-            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+            return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'language') and lang_match(lang, t.object.language)]
         else:
-            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+            return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'language') and t.object.language is not None]
     
     def objects_by_datatype(self, predicate, datatype=None):
         """Objects for a predicate that match a specified datatype or, if
         datatype is None, have a datatype specified."""
         if datatype:
-            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+            return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'datatype') and t.object.datatype == datatype]
         else:
-            return [t.object for t in self.graph.match(Triple(self.subject, predicate, None)) if\
+            return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'datatype') and t.object.datatype is not None]
     
     def objects_by_type(self, predicate, resource_class = None):
         """Objects for a predicate that are instances of a particular Resource
         subclass or, if resource_class is none, are Resources."""
         selected_objects = []
-        for t in self.graph.match(Triple(self.subject, predicate, None)):
+        for t in self.graph.match(self.subject, predicate, None):
             obj = t.object
             if isinstance(obj, BlankNode) or isinstance(obj, NamedNode):
                 if resource_class is None or\
@@ -269,17 +273,17 @@ class Resource(object):
 
     def objects(self, predicate):
         """All objects for a predicate."""
-        return [t.object for t in self.graph.match(Triple(self.subject, predicate, None))]
+        return [t.object for t in self.graph.match(self.subject, predicate, None)]
     
     def object_of(self, predicate = None):
         """All subjects for which this resource is an object for the given
         predicate."""
         if predicate is None:
-            for triple in self.graph.match(Triple(None, None, self.subject)):
+            for triple in self.graph.match(None, None, self.subject):
                 yield (self.classify(self.graph, triple.subject), triple.predicate)
         else:
             predicate = self.resolve(predicate)
-            for triple in self.graph.match(Triple(None, predicate, self.subject)):
+            for triple in self.graph.match(None, predicate, self.subject):
                 yield self.classify(self.graph, triple.subject)
     
     def __getitem__(self, key):
@@ -383,10 +387,10 @@ class Resource(object):
         for rdf_class in cls.rdf_classes:
             if not subjects:
                 subjects.update([t.subject for t in graph.match(
-                    Triple(None, cls.resolve('rdf:type'), rdf_class))])
+                    None, cls.resolve('rdf:type'), rdf_class)])
             else:
                 subjects.intersection_update([t.subject for t in graph.match(
-                    Triple(None, cls.resolve('rdf:type'), rdf_class))])
+                    None, cls.resolve('rdf:type'), rdf_class)])
         return set(cls(graph, subject) for subject in subjects)
     
     def __repr__(self):
@@ -408,12 +412,12 @@ class Resource(object):
             return None
         if isinstance(obj, Literal):
             return obj
-        if any(graph.match(Triple(obj, cls.resolve('rdf:type'), None))):
+        if any(graph.match(obj, cls.resolve('rdf:type'), None)):
             #retrieve_resource(graph, obj)
-            if not any(graph.match(Triple(obj, cls.resolve('rdf:type'), None))):
+            if not any(graph.match(obj, cls.resolve('rdf:type'), None)):
                 return Resource(graph, obj)
         types = frozenset([t.object for t in graph.match(
-            Triple(obj, cls.resolve('rdf:type'), None))])
+            obj, cls.resolve('rdf:type'), None)])
         python_classes = tuple(cls.__metaclass__._classes[t] for t in types if\
                                t in cls.__metaclass__._classes)
         if len(python_classes) == 0:
@@ -522,7 +526,7 @@ class Resource(object):
         if not isinstance(target_subject, NamedNode) and\
            not isinstance(target_subject, BlankNode):
             target_subject = NamedNode(target_subject)
-        for t in self.graph.match(Triple(self.subject, None, None)):
+        for t in self.graph.match(self.subject, None, None):
             self.graph.add((target_subject, t.predicate, t.object))
         return self.classify(self.graph, target_subject)
 
