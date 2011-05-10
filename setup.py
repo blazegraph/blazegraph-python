@@ -11,8 +11,6 @@ from pymantic import version
 
 import setupinfo
 
-from Cython.Distutils import build_ext
-
 setup(name='pymantic',
       version=version,
       description="Semantic Web and RDF library for Python",

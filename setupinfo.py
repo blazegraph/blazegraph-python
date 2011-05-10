@@ -1,3 +1,5 @@
+import os
+
 try:
     from Cython.Distutils import build_ext as build_pyx
     import Cython.Compiler.Version
