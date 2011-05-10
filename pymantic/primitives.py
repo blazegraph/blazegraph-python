@@ -1,5 +1,6 @@
 __all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
-           'Namespace', 'BlankNode', 'Graph', 'Dataset',]
+           'Namespace', 'BlankNode', 'Graph', 'Dataset','parse_curie', 
+           'is_language', 'lang_match', 'parse_curie' ]
 
 import collections
 import datetime
@@ -7,8 +8,85 @@ from operator import itemgetter
 import urllib
 import urlparse
 
+import pymantic.uri_schemes as uri_schemes
+
 from pymantic.util import quote_normalized_iri
 from pymantic.serializers import nt_escape
+
+def is_language(lang):
+    """Is something a valid XML language?"""
+    if isinstance(lang, NamedNode):
+        return False
+    return True
+
+def lang_match(lang1, lang2):
+    """Determines if two languages are, in fact, the same language.
+    
+    Eg: en is the same as en-us and en-uk."""
+    if lang1 is None and lang2 is None:
+        return True
+    elif lang1 is None or lang2 is None:
+        return False
+    lang1 = lang1.partition('-')
+    lang2 = lang2.partition('-')
+    return lang1[0] == lang2[0] and (lang1[2] == '' or lang2[2] == '' or\
+                                     lang1[2] == lang2[2])
+
+def parse_curie(curie, namespaces):
+    """
+    Parses a CURIE within the context of the given namespaces. Will also accept
+    explicit URIs and wrap them in an rdflib URIRef.
+    
+    Specifically:
+
+    1) If the CURIE is not of the form [stuff] and the prefix is in the list of
+       standard URIs, it is wrapped in a URIRef and returned unchanged.
+    2) Otherwise, the CURIE is parsed by the rules of CURIE Syntax 1.0:
+       http://www.w3.org/TR/2007/WD-curie-20070307/ The default namespace is the
+       namespace keyed by the empty string in the namespaces dictionary.
+    3) If the CURIE's namespace cannot be resolved, a ValueError is raised.
+    """
+    definitely_curie = False
+    if curie[0] == '[' and curie[-1] == ']':
+        curie = curie[1:-1]
+        definitely_curie = True
+    prefix, sep, reference = curie.partition(':')
+    if not definitely_curie:
+        if prefix in uri_schemes.schemes:
+            return NamedNode(curie)
+    if not reference and '' in namespaces:
+        reference = prefix
+        return namespaces[''](reference)
+    if prefix in namespaces:
+        return namespaces[prefix](reference)
+    else:
+        raise ValueError('Could not parse CURIE prefix %s from namespaces %s' % (prefix, namespaces))
+
+def parse_curies(curies, namespaces):
+    """Parse multiple CURIEs at once."""
+    for curie in curies:
+        yield parse_curie(curie, namespaces)
+
+def to_curie(uri, namespaces, seperator=":", explicit=False):
+    """Converts a URI to a CURIE using the prefixes defined in namespaces. If
+    there is no matching prefix, return the URI unchanged.
+    
+    namespaces - a dictionary of prefix -> namespace mappings.
+    
+    separator - the character to use as the separator between the prefix and
+                the local name.
+                
+    explicit - if True and the URI can be abbreviated, wrap the abbreviated form
+               in []s to indicate that it is definitely a CURIE."""
+    for prefix, namespace in namespaces.items():
+        if uri.startswith(namespace):
+            if explicit:
+                return '[' + uri.replace(namespace, prefix + seperator) + ']'
+            else:
+                return uri.replace(namespace, prefix + seperator)
+    return uri
+
+
 
 class Triple(tuple):
     'Triple(subject, predicate, object)' 
@@ -393,3 +471,61 @@ class Dataset(object):
     
     def toArray(self):
         return frozenset(self)
+
+# RDF Enviroment Interfaces
+
+class PrefixMap(dict):
+    """A map of prefixes to IRIs, and provides methods to 
+    turn one in to the other.
+    
+    Example:
+    >>> prefixes = PrefixMap()
+    
+    Create a new prefix mapping for the prefix "rdfs"
+    >>> prefixes['rdfs'] = "http://www.w3.org/2000/01/rdf-schema#"
+    
+    Resolve a known CURIE
+    >>> prefixes.resolve("rdfs:label")
+    u"http://www.w3.org/2000/01/rdf-schema#label"
+
+    Shrink an IRI for a known CURIE in to a CURIE
+    >>> prefixes.shrink("http://www.w3.org/2000/01/rdf-schema#label")
+    u"rdfs:label"
+    
+    Attempt to resolve a CURIE with an empty prefix
+    >>> prefixes.resolve(":me")
+    ":me"
+    
+    Set the default prefix and attempt to resolve a CURIE with an empty prefix
+    >>> prefixes.setDefault("http://example.org/bob#")
+    >>> prefixes.resolve(":me")
+    u"http://example.org/bob#me"
+    """
+    
+    def resolve(self, curie):
+        """Given a valid CURIE for which a prefix is known (for example 
+        "rdfs:label"), this method will return the resulting IRI (for example 
+        "http://www.w3.org/2000/01/rdf-schema#label")"""
+        return parse_curie(curie, self)
+    
+    def shrink(self, iri):
+        """Given an IRI for which a prefix is known (for example 
+        "http://www.w3.org/2000/01/rdf-schema#label") this method returns a 
+        CURIE (for example "rdfs:label"), if no prefix is known the original 
+        IRI is returned."""
+        return to_curie(iri, self)
+    
+    def addAll(self, other):
+        self.update(other)
+        return self
+        
+    def setDefault(self, iri):
+        """Set the iri to be used when resolving CURIEs without a prefix, for example ":this"."""
+        self[''] = iri
+
+class TermMap(object):
+    pass
+
+class Profile(object):
+    pass
+
