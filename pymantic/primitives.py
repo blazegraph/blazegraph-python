@@ -520,12 +520,73 @@ class PrefixMap(dict):
         return self
         
     def setDefault(self, iri):
-        """Set the iri to be used when resolving CURIEs without a prefix, for example ":this"."""
+        """Set the iri to be used when resolving CURIEs without a prefix, for 
+        example ":this"."""
         self[''] = iri
 
-class TermMap(object):
-    pass
+class TermMap(dict):
+    """A map of simple string terms to IRIs, and provides methods to turn one in
+    to the other.
+    
+    Example:
+    >>> terms = TermMap()
+    
+    Create a new term mapping for the term "member"
+    >>> terms['member'] = "http://www.w3.org/ns/org#member"
+    
+    Resolve a known term to an IRI
+    >>> terms.resolve("member")
+    u"http://www.w3.org/ns/org#member"
+    
+    Shrink an IRI for a known term to a term
+    >>> terms.shrink("http://www.w3.org/ns/org#member")
+    u"member"
+    
+    Attempt to resolve an unknown term
+    >>> terms.resolve("label")
+    None
+    
+    Set the default term vocabulary and then attempt to resolve an unknown term
+    >>> terms.setDefault("http://www.w3.org/2000/01/rdf-schema#")
+    >>> terms.resolve("label")
+    u"http://www.w3.org/2000/01/rdf-schema#label"
+"""
+    
+    def addAll(self, other):
+        self.update(other)
+        return self
 
+    def resolve(self, term):
+        """Given a valid term for which an IRI is known (for example "label"), 
+        this method will return the resulting IRI (for example 
+        "http://www.w3.org/2000/01/rdf-schema#label").
+
+        If no term is known and a default has been set, the IRI is obtained by 
+        concatenating the term and the default iri.
+
+        If no term is known and no default is set, then this method returns 
+        null."""
+        if hasattr(self, 'default'):
+            return self.get(term, self.default + term)
+        else:
+            return self.get(term)
+    
+    def setDefault(self, iri):
+        """The default iri to be used when an term cannot be resolved, the 
+        resulting IRI is obtained by concatenating this iri with the term being 
+        resolved."""
+        self.default = iri
+    
+    def shrink(self, iri):
+        """Given an IRI for which an term is known (for example 
+        "http://www.w3.org/2000/01/rdf-schema#label") this method returns a 
+        term (for example "label"), if no term is known the original IRI is 
+        returned."""
+        for term, v in self.iteritems():
+            if v == iri:
+                return term
+        return iri
+    
 class Profile(object):
     pass
 
