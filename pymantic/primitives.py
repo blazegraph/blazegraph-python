@@ -642,36 +642,36 @@ class RDFEnvironment(Profile):
     def createBlankNode(self):
         return BlankNode()
     
-    def createNamedNode(value):
+    def createNamedNode(self, value):
         return NamedNode(value)
     
-    def createLiteral(value, language=None, datatype=None):
+    def createLiteral(self, value, language=None, datatype=None):
         return Literal(value, language, datatype)
     
-    def createTriple(subject, predicate, object):
+    def createTriple(self, subject, predicate, object):
         return Triple(subject, predicate, object)
     
-    def createGraph(triples = tuple()):
+    def createGraph(self, triples = tuple()):
         g = Graph()
         g.addAll(triples)
         return g
     
-    def createAction(test, action):
+    def createAction(self, test, action):
         raise NotImplemented
     
-    def createProfile(empty=False):
+    def createProfile(self, empty=False):
         if empty:
             return Profile()
         else:
             return Profile(self.prefixes, self.terms)
     
-    def createTermMap(empty=False):
+    def createTermMap(self, empty=False):
         if empty:
             return TermMap()
         else:
             return TermMap(self.terms)
     
-    def createPrefixMap(empty=False):
+    def createPrefixMap(self, empty=False):
         if empty:
             return PrefixMap()
         else:
@@ -679,10 +679,10 @@ class RDFEnvironment(Profile):
         
     # Pymantic DataSet Extensions
     
-    def createQuad(subject, predicate, object, graph):
+    def createQuad(self, subject, predicate, object, graph):
         return Quad(subject, predicate, object, graph)
     
-    def createDataset(quads = tuple()):
+    def createDataset(self, quads = tuple()):
         ds = Dataset()
         ds.addAll(quads)
         return ds

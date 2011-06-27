@@ -6,6 +6,7 @@ import re
 from threading import local
 from urlparse import urljoin
 from pymantic.util import normalize_iri
+import pymantic.primitives
 
 unicode_re = re.compile(r'\\u([0-9A-Za-z]{4})|\\U([0-9A-Za-z]{8})')
 
@@ -26,28 +27,26 @@ def nt_unescape(nt_string):
 
 class BaseLeplParser(object):
 
-    def __init__(self):
+    def __init__(self, environment=None):
+        self.env = environment or pymantic.primitives.RDFEnvironment()
         self._call_state = local()
         
     def make_datatype_literal(self, values):
-        from pymantic.primitives import Literal
-        return Literal(value = values[0], datatype = values[1])
+        return self.env.createLiteral(value = values[0], datatype = values[1])
     
     def make_language_literal(self, values):
-        from pymantic.primitives import Literal
         if len(values) == 2:
-            return Literal(value = values[0], language = values[1])
+            return self.env.createLiteral(value = values[0],
+                                                  language = values[1])
         else:
-            return Literal(value = values[0])
+            return self.env.createLiteral(value = values[0])
     
     def make_named_node(self, values):
-        from pymantic.primitives import NamedNode
-        return NamedNode(normalize_iri(values[0]))
+        return self.env.createNamedNode(normalize_iri(values[0]))
     
     def make_blank_node(self, values):
-        from pymantic.primitives import BlankNode
         if values[0] not in self._call_state.bnodes:
-            self._call_state.bnodes[values[0]] = BlankNode()
+            self._call_state.bnodes[values[0]] = self.env.createBlankNode()
         return self._call_state.bnodes[values[0]]
     
     def _prepare_parse(self, graph):
@@ -83,8 +82,8 @@ class BaseNParser(BaseLeplParser):
     """Base parser that establishes common grammar rules and interfaces used for
     parsing both n-triples and n-quads."""
     
-    def __init__(self):
-        super(BaseNParser, self).__init__()
+    def __init__(self, environment=None):
+        super(BaseNParser, self).__init__(environment)
         self.string = Regexp(r'(?:[ -!#-[\]-~]|\\[trn"\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})*')
         self.name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
         self.absoluteURI = Regexp(r'(?:[ -=?-[\]-~]|\\[trn"\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})+')
@@ -100,47 +99,43 @@ class BaseNParser(BaseLeplParser):
         self.comment = Literal('#') & Regexp(r'[ -~]*')
         
     def make_named_node(self, values):
-        from pymantic.primitives import NamedNode
-        return NamedNode(normalize_iri(nt_unescape(values[0])))
+        return self.env.createNamedNode(normalize_iri(nt_unescape(values[0])))
     
     def make_language_literal(self, values):
-        from pymantic.primitives import Literal
         if len(values) == 2:
-            return Literal(value = nt_unescape(values[0]), language = values[1])
+            return self.env.createLiteral(value = nt_unescape(values[0]),
+                                          language = values[1])
         else:
-            return Literal(value = nt_unescape(values[0]))
+            return self.env.createLiteral(value = nt_unescape(values[0]))
 
 class NTriplesParser(BaseNParser):
     def make_triple(self, values):
-        from pymantic.primitives import Triple
-        triple = Triple(*values)
+        triple = self.env.createTriple(*values)
         self._call_state.graph.add(triple)
         return triple
 
-    def __init__(self):
-        super(NTriplesParser, self).__init__()
+    def __init__(self, environment=None):
+        super(NTriplesParser, self).__init__(environment)
         self.triple = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) & self.object_ & ~Star(Space()) & ~Literal('.') & ~Star(Space()) >= self.make_triple
         self.line = Star(Space()) & Optional(~self.triple | ~self.comment) & ~Literal('\n')
         self.document = Star(self.line)
     
     def _make_graph(self):
-        from pymantic.primitives import Graph
-        return Graph()
+        return self.env.createGraph()
     
-    def parse(self, f, graph):
+    def parse(self, f, graph=None):
         return super(NTriplesParser, self).parse(f, graph)
 
 ntriples_parser = NTriplesParser()
 
 class NQuadsParser(BaseNParser):
     def make_quad(self, values):
-        from pymantic.primitives import Quad
-        quad = Quad(*values)
+        quad = self.env.createQuad(*values)
         self._call_state.graph.add(quad)
         return quad
 
-    def __init__(self):
-        super(NQuadsParser, self).__init__()
+    def __init__(self, environment=None):
+        super(NQuadsParser, self).__init__(environment)
         self.graph_name = self.uriref
         self.quad = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) &\
             self.object_ & ~Plus(Space()) & self.graph_name & ~Star(Space()) &\
@@ -149,10 +144,9 @@ class NQuadsParser(BaseNParser):
         self.document = Star(self.line)
     
     def _make_graph(self):
-        from pymantic.primitives import Dataset
-        return Dataset()
+        return self.env.createDataset()
     
-    def parse(self, f, dataset):
+    def parse(self, f, dataset=None):
         return super(NQuadsParser, self).parse(f, dataset)
 
 nquads_parser = NQuadsParser()
