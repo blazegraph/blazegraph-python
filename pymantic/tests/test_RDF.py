@@ -624,7 +624,7 @@ class TestRDF(unittest.TestCase):
         en = Literal('foo', language='en')
         fr = Literal('bar', language='fr')
         es = Literal('baz', language='es')
-        xsdstring = Literal('aap', datatype=XSD('string'))
+        xsdstring = Literal('aap')
         xsddecimal = Literal('9.95', datatype=XSD('decimal'))
         graph = Graph()
         offering = Offering.new(graph, 'http://example.com/offering')
@@ -636,7 +636,7 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((en, fr, es,)))
         offering['gr:description'] = set((xsdstring, xsddecimal,))
-        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
+        self.assertEqual(frozenset(offering['gr:description', '']),
                          frozenset((xsdstring,)))
         self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
@@ -647,7 +647,7 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
         self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
         self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
-        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
+        self.assertEqual(frozenset(offering['gr:description', '']),
                          frozenset((xsdstring,)))
         self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
