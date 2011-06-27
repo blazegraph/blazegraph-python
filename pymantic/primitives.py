@@ -195,6 +195,8 @@ class Literal(tuple):
     }
 
     def __new__(_cls, value, language=None, datatype=None):
+        if datatype == 'http://www.w3.org/2001/XMLSchema#string':
+            datatype = None
         if not isinstance(value, str) and not isinstance(value, unicode):
             value, auto_datatype = _cls.types[type(value)](value)
             if datatype is None:
@@ -614,6 +616,10 @@ class Profile(object):
     def __init__(self, prefixes=None, terms=None):
         self.prefixes = prefixes or PrefixMap()
         self.terms = terms or TermMap()
+        if 'rdf' not in self.prefixes:
+            self.prefixes['rdf'] = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+        if 'xsd' not in self.prefixes:
+            self.prefixes['xsd'] = 'http://www.w3.org/2001/XMLSchema#'
     
     def resolve(toresolve):
         if ':' in toresolve:
