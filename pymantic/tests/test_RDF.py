@@ -628,6 +628,7 @@ class TestRDF(unittest.TestCase):
         xsddecimal = Literal('9.95', datatype=XSD('decimal'))
         graph = Graph()
         offering = Offering.new(graph, 'http://example.com/offering')
+        
         offering['gr:description'] = set((en, fr, es,))
         self.assertEqual(frozenset(offering['gr:description']), frozenset((en,fr,es,)))
         self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
@@ -635,19 +636,25 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((en, fr, es,)))
+        
         offering['gr:description'] = set((xsdstring, xsddecimal,))
         self.assertEqual(frozenset(offering['gr:description', '']),
+                         frozenset((xsdstring,)))
+        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
                          frozenset((xsdstring,)))
         self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
         self.assertEqual(frozenset(offering['gr:description', None]),
                          frozenset((xsdstring, xsddecimal,)))
+        
         offering['gr:description'] = set((en, fr, es, xsdstring, xsddecimal,))
         self.assertEqual(frozenset(offering['gr:description']), frozenset((en, fr, es, xsdstring, xsddecimal,)))
         self.assertEqual(frozenset(offering['gr:description', 'en']), frozenset((en,)))
         self.assertEqual(frozenset(offering['gr:description', 'fr']), frozenset((fr,)))
         self.assertEqual(frozenset(offering['gr:description', 'es']), frozenset((es,)))
         self.assertEqual(frozenset(offering['gr:description', '']),
+                         frozenset((xsdstring,)))
+        self.assertEqual(frozenset(offering['gr:description', XSD('string')]),
                          frozenset((xsdstring,)))
         self.assertEqual(frozenset(offering['gr:description', XSD('decimal')]),
                          frozenset((xsddecimal,)))
