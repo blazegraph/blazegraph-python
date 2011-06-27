@@ -134,14 +134,14 @@ class Triple(tuple):
         return str(self)
         
 class Quad(tuple):
-    'Quad(graph, subject, predicate, object)' 
+    'Quad(subject, predicate, object, graph)'
 
     __slots__ = () 
 
-    _fields = ('graph', 'subject', 'predicate', 'object') 
+    _fields = ('subject', 'predicate', 'object', 'graph')
 
-    def __new__(_cls, graph, subject, predicate, object):
-        return tuple.__new__(_cls, (graph, subject, predicate, object)) 
+    def __new__(_cls, subject, predicate, object, graph):
+        return tuple.__new__(_cls, (subject, predicate, object, graph))
 
     @classmethod
     def _make(cls, iterable, new=tuple.__new__, len=len):
@@ -152,15 +152,15 @@ class Quad(tuple):
         return result 
 
     def __repr__(self):
-        return 'Quad(graph=%r, subject=%r, predicate=%r, object=%r)' % self 
+        return 'Quad(subject=%r, predicate=%r, object=%r, graph=%r)' % self 
 
     def _asdict(t):
         'Return a new dict which maps field names to their values'
-        return {'graph': t[0], 'subject': t[1], 'predicate': t[2], 'object': t[3]} 
+        return {'subject': t[0], 'predicate': t[1], 'object': t[2], 'graph': t[3],}
 
     def _replace(_self, **kwds):
         'Return a new Quad object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, ('graph', 'subject', 'predicate', 'object'), _self))
+        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object', 'graph'), _self))
         if kwds:
             raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result 
@@ -168,10 +168,10 @@ class Quad(tuple):
     def __getnewargs__(self):
         return tuple(self) 
 
-    graph = property(itemgetter(0))
-    subject = property(itemgetter(1))
-    predicate = property(itemgetter(2))
-    object = property(itemgetter(3))
+    subject = property(itemgetter(0))
+    predicate = property(itemgetter(1))
+    object = property(itemgetter(2))
+    graph = property(itemgetter(3))
     
     def __str__(self):
         return str(self.subject) + ' ' + str(self.predicate) + ' ' + str(self.object) + ' ' + str(self.graph) + ' .\n'
@@ -326,7 +326,7 @@ class Graph(object):
         del self._osp[triple.object][triple.subject][triple.predicate]
         return self
         
-    def match(self, subject, predicate, object):
+    def match(self, subject=None, predicate=None, object=None):
         """This method returns a new sequence of triples which is comprised of 
         all those triples in the current instance which match the given 
         arguments, that is, for each triple in this graph, it is included in the
@@ -409,8 +409,7 @@ class Graph(object):
     
     def toArray(self):
         return frozenset(self._triples)
-    
-    
+
             
         
 
@@ -441,7 +440,7 @@ class Dataset(object):
     def graphs(self):
         return self._graphs.values()
     
-    def match(self, graph, subject, predicate, object):
+    def match(self, subject=None, predicate=None, object=None, graph=None):
         if graph:
             matches = self._graphs[graph].match(subject, predicate, object)
             for match in matches:
@@ -450,6 +449,20 @@ class Dataset(object):
             for graph_uri, graph in self._graphs.iteritems():
                 for match in graph.match(subject, predicate, object):
                     yield t_as_q(graph_uri, match)
+    
+    def removeMatches(self, subject=None, predicate=None, object=None, graph=None):
+        """This method removes those triples in the current graph which match 
+        the given arguments."""
+        for quad in self.match(subject, predicate, object, graph):
+            self.remove(quad)
+        return self
+
+    def addAll(self, dataset_or_quads):
+        """Imports the graph or set of triples in to this graph. This method 
+        returns the graph instance it was called on."""
+        for quad in dataset_or_quads:
+            self.add(quad)
+        return self
     
     def __len__(self):
         return sum(len(g) for g in self.graphs)
@@ -515,10 +528,15 @@ class PrefixMap(dict):
         IRI is returned."""
         return to_curie(iri, self)
     
-    def addAll(self, other):
-        self.update(other)
+    def addAll(self, other, override=False):
+        if override:
+            self.update(other)
+        else:
+            for key, value in other.iteritems():
+                if key not in self:
+                    self[key] = value
         return self
-        
+    
     def setDefault(self, iri):
         """Set the iri to be used when resolving CURIEs without a prefix, for 
         example ":this"."""
@@ -552,8 +570,13 @@ class TermMap(dict):
     u"http://www.w3.org/2000/01/rdf-schema#label"
 """
     
-    def addAll(self, other):
-        self.update(other)
+    def addAll(self, other, override=False):
+        if override:
+            self.update(other)
+        else:
+            for key, value in other.iteritems():
+                if key not in self:
+                    self[key] = value
         return self
 
     def resolve(self, term):
@@ -588,5 +611,78 @@ class TermMap(dict):
         return iri
     
 class Profile(object):
-    pass
+    def __init__(self, prefixes=None, terms=None):
+        self.prefixes = prefixes or PrefixMap()
+        self.terms = terms or TermMap()
+    
+    def resolve(toresolve):
+        if ':' in toresolve:
+            return self.prefixes.resolve(toresolve)
+        else:
+            return self.terms.resolve(toresolve)
+    
+    def setDefaultVocabulary(self, iri):
+        self.terms.setDefault(iri)
+    
+    def setDefaultPrefix(self, iri):
+        self.prefixes.setDefault(iri)
+    
+    def setTerm(self, term, iri):
+        self.terms[term] = iri
+    
+    def setPrefix(self, prefix, iri):
+        self.prefixes[prefix] = iri
+    
+    def importProfile(self, profile, override=False):
+        self.prefixes.addAll(profile.prefixes, overide)
+        self.terms.addAll(profile.terms, override)
+        return self
 
+class RDFEnvironment(Profile):
+    def createBlankNode(self):
+        return BlankNode()
+    
+    def createNamedNode(value):
+        return NamedNode(value)
+    
+    def createLiteral(value, language=None, datatype=None):
+        return Literal(value, language, datatype)
+    
+    def createTriple(subject, predicate, object):
+        return Triple(subject, predicate, object)
+    
+    def createGraph(triples = tuple()):
+        g = Graph()
+        g.addAll(triples)
+        return g
+    
+    def createAction(test, action):
+        raise NotImplemented
+    
+    def createProfile(empty=False):
+        if empty:
+            return Profile()
+        else:
+            return Profile(self.prefixes, self.terms)
+    
+    def createTermMap(empty=False):
+        if empty:
+            return TermMap()
+        else:
+            return TermMap(self.terms)
+    
+    def createPrefixMap(empty=False):
+        if empty:
+            return PrefixMap()
+        else:
+            return PrefixMap(self.prefixes)
+        
+    # Pymantic DataSet Extensions
+    
+    def createQuad(subject, predicate, object, graph):
+        return Quad(subject, predicate, object, graph)
+    
+    def createDataset(quads = tuple()):
+        ds = Dataset()
+        ds.addAll(quads)
+        return ds
