@@ -180,7 +180,7 @@ def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
 
 def t_as_q(graph_name, triple):
-    return Quad(graph_name, triple.subject, triple.predicate, triple.object)
+    return Quad(triple.subject, triple.predicate, triple.object, graph_name)
 
 class Literal(tuple):
     """Literal(value, language, datatype)""" 

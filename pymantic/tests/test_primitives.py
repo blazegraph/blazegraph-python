@@ -118,19 +118,21 @@ def test_ds_len():
     assert len(ds) == 10
     
 def test_match_ds_sVV_pattern():
-    q = Quad(NamedNode("http://example.com/graph"), NamedNode("http://example.com"), 
-             NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"))
+    q = Quad(NamedNode("http://example.com"), 
+             NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"),
+             NamedNode("http://example.com/graph"))
     ds = Dataset()
     ds.add(q)
-    matches = ds.match(None, NamedNode("http://example.com"), None, None)
+    matches = ds.match(subject=NamedNode("http://example.com"))
     assert q in matches
     
 def test_match_ds_quad_pattern():
-    q = Quad(NamedNode("http://example.com/graph"), NamedNode("http://example.com"), 
-             NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"))
+    q = Quad(NamedNode("http://example.com"), 
+             NamedNode("http://purl.org/dc/terms/issued"),Literal("Never!"),
+             NamedNode("http://example.com/graph"))
     ds = Dataset()
     ds.add(q)
-    matches = ds.match("http://example.com/graph", None ,None, None)
+    matches = ds.match(graph="http://example.com/graph")
     assert q in matches
     
 def test_add_graph():
@@ -143,10 +145,10 @@ def test_add_graph():
 
 def generate_quads(n):
     for i in range(n):
-        yield Quad(NamedNode("http://example/graph/"+str(random.randint(1,1000))),
-                   NamedNode("http://example/" + str(random.randint(1,1000))),
+        yield Quad(NamedNode("http://example/" + str(random.randint(1,1000))),
                    NamedNode("http://purl.org/dc/terms/" + str(random.randint(1,100))),
-                   Literal(random.randint(1,1000)))
+                   Literal(random.randint(1,1000)),
+                   NamedNode("http://example/graph/"+str(random.randint(1,1000))))
         
 def test_10000_quads():
     n = 10000
@@ -154,7 +156,8 @@ def test_10000_quads():
     for q in generate_quads(n):
         ds.add(q)
     assert len(ds) > n * .9
-    matches = ds.match(NamedNode("http://example/graph/42"),NamedNode("http://example.com/42"), None, None)
+    matches = ds.match(subject=NamedNode("http://example.com/42"), 
+                       graph=NamedNode("http://example/graph/42"))
 
 def test_iter_10000_quads():
     n = 10000
