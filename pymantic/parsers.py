@@ -153,16 +153,11 @@ nquads_parser = NQuadsParser()
 
 class TurtleParser(BaseLeplParser):
     
-    def __init__(self):
-        super(TurtleParser, self).__init__()
+    def __init__(self, environment=None):
+        super(TurtleParser, self).__init__(environment)
         
         self.absolute_uri_re = re.compile('^[^/]+:')
-        
-        from pymantic.primitives import Namespace
-        
-        self.rdf = Namespace('http://www.w3.org/1999/02/22-rdf-syntax-ns#')
-        self.xsd = Namespace('http://www.w3.org/2001/XMLSchema#')
-        
+                
         # White space is significant in the following rules.
         hex_ = Any('0123456789ABCDEF')
         character_escape = Or(And(Literal('r\u'), hex_[4]),
@@ -229,7 +224,7 @@ class TurtleParser(BaseLeplParser):
     
     def _prepare_parse(self, graph):
         super(TurtleParser, self)._prepare_parse(graph)
-        self._call_state.prefixes = {}
+        self._call_state.prefixes = self.env.createPrefixMap(empty=True)
         self._call_state.base_uri = None
     
     def record_base(self, values):
@@ -258,57 +253,56 @@ class TurtleParser(BaseLeplParser):
             (resource.get('uriref') or resource.get('qname'),))
     
     def make_triples(self, values):
-        from pymantic.primitives import Triple, BlankNode
         triples = dict(values)
         subject = triples.get('subject')
         if not subject:
-            subject = BlankNode()
+            subject = self.env.createBlankNode()
         for predicate_object_node in triples.get('predicateObjectList', ()):
             predicate = predicate_object_node.predicate[0]
             for object_ in predicate_object_node.objectList[0]:
-                self._call_state.graph.add(Triple(subject, predicate, object_))
+                self._call_state.graph.add(self.env.createTriple(subject, predicate, object_))
         return subject
     
     def make_collection(self, values):
-        from pymantic.primitives import BlankNode, Triple
-        prior = self.rdf('nil')
+        prior = self.env.resolve('rdf:nil')
         for element in reversed(values):
-            this = BlankNode()
-            self._call_state.graph.add(Triple(this, self.rdf('first'), element))
-            self._call_state.graph.add(Triple(this, self.rdf('rest'), prior))
+            this = self.env.createBlankNode()
+            self._call_state.graph.add(self.env.createTriple(
+                subject=this, predicate=self.env.resolve('rdf:first'),
+                object=element))
+            self._call_state.graph.add(self.env.createTriple(
+                subject=this, predicate=self.env.resolve('rdf:rest'), object=prior))
             prior = this
         return prior
     
     def _make_graph(self):
-        from pymantic.primitives import Graph
-        return Graph()
+        return self.env.createGraph()
     
     def make_datatype_literal(self, values):
-        from pymantic.primitives import Literal
         datatyped = dict(values)
-        return Literal(datatyped['quotedString'], datatype = datatyped['dataType'])
+        return self.env.createLiteral(datatyped['quotedString'],
+                                      datatype = datatyped['dataType'])
     
     def make_integer_literal(self, values):
-        from pymantic.primitives import Literal
-        return Literal(values[0], datatype = self.xsd('integer'))
+        return self.env.createLiteral(values[0],
+                                      datatype = self.env.resolve('xsd:integer'))
     
     def make_decimal_literal(self, values):
-        from pymantic.primitives import Literal
-        return Literal(values[0], datatype = self.xsd('decimal'))
+        return self.env.createLiteral(values[0],
+                                      datatype = self.env.resolve('xsd:decimal'))
     
     def make_double_literal(self, values):
-        from pymantic.primitives import Literal
-        return Literal(values[0], datatype = self.xsd('double'))
+        return self.env.createLiteral(values[0],
+                                      datatype = self.env.resolve('xsd:double'))
     
     def make_boolean_literal(self, values):
-        from pymantic.primitives import Literal
-        return Literal(values[0], datatype = self.xsd('boolean'))
+        return self.env.createLiteral(values[0],
+                                      datatype = self.env.resolve('xsd:boolean'))
     
     def make_language_literal(self, values):
-        print values
-        from pymantic.primitives import Literal
         languageable = dict(values)
-        return Literal(languageable['quotedString'], language = languageable.get('language'))
+        return self.env.createLiteral(languageable['quotedString'],
+                                      language = languageable.get('language'))
 
 turtle_parser = TurtleParser()
 
