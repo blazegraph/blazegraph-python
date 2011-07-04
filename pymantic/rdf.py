@@ -170,6 +170,8 @@ class Resource(object):
         if lang:
             return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'language') and lang_match(lang, t.object.language)]
+        elif lang == '':
+            return self.bare_literals(predicate)
         else:
             return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'language') and t.object.language is not None]
@@ -180,6 +182,8 @@ class Resource(object):
         if datatype:
             return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'datatype') and t.object.datatype == datatype]
+        elif datatype == '':
+            return self.bare_literals(predicate)
         else:
             return [t.object for t in self.graph.match(self.subject, predicate, None) if\
                     hasattr(t.object, 'datatype') and t.object.datatype is not None]
@@ -374,7 +378,7 @@ class Resource(object):
             elif is_language(key[1]):
                 lang = key[1]
             else:
-                datatype = key[1]
+                datatype = self._interpret_datatype(key[1])
             predicate = self.resolve(key[0])
         else:
             predicate = self.resolve(key)
@@ -382,11 +386,22 @@ class Resource(object):
             lang = self.lang
         return predicate, lang, datatype, rdf_class
     
+    def _interpret_datatype(self, datatype):
+        """Deal with xsd:string vs. plain literal"""
+        if datatype == '':
+            return ''
+        elif datatype == 'http://www.w3.org/2001/XMLSchema#string':
+            return ''
+        else:
+            return datatype
+        
+    
     def _objects_for_key(self, key):
         """Find objects that are potentially interesting when doing normal
         dictionary key-style access - IE, __getitem__, __delitem__, __contains__,
         and pretty much everything but __setitem__."""
         predicate, lang, datatype, rdf_class = self._interpret_key(key)
+        log.debug("predicate: %r lang: %r datatype: %r rdf_class: %r", predicate, lang, datatype, rdf_class)
         if lang is None and datatype is None and rdf_class is None:
             objects = self.objects(predicate)
         elif lang:
@@ -405,6 +420,8 @@ class Resource(object):
                 objects += self.objects_by_type(predicate)
         elif rdf_class:
             objects = self.objects_by_type(predicate, rdf_class)
+        elif lang == '' or datatype == '':
+            objects = self.bare_literals(predicate)
         else:
             raise KeyError('Invalid key: ' + repr(key))
         return predicate, objects
