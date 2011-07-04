@@ -406,7 +406,7 @@ class Resource(object):
         elif rdf_class:
             objects = self.objects_by_type(predicate, rdf_class)
         else:
-            raise KeyError('Invalid key: %s', key)
+            raise KeyError('Invalid key: ' + repr(key))
         return predicate, objects
     
     def _objects_for_implicit_set(self, predicate, value):
