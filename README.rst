@@ -10,16 +10,21 @@ Quick Start
 ===========
 :: 
 
-    >>> import pymantic
-    >>> resource = Resource.in_graph(graph, 'http://example.com/resource')
+    >>> from pymantic.rdf import *
+    >>> from pymantic.parers import turtle_parser
+    >>> graph = turtle_parser.parse('https://raw.github.com/norcalrdf/pymantic/master/examples/foaf-bond.ttl')
+    >>> bond_james = Resource.in_graph(graph, 'http://example.org/stuff/Bond')
+    >>> print "%s knows:" % bond_james['http://xmlns.com/foaf/0.1/name']
+    >>> for person in bond_james['http://xmlns.com/foaf/0.1/knows']:
+            print person['http://xmlns.com/foaf/0.1/name']
+
 
 
 Requirements
 ============
 
-Pymantic requires Python 2.5 or higher. rdflib is currently used to provide RDF
-primitives, only rdflib 3.x versions are supported. httplib2 is used for HTTP 
-requests and the SPARQL client. lxml is required by the SPARQL client as well.
+Pymantic requires Python 2.6 or higher. Lepl is used for the Turtle and NTriples parser. httplib2 is used for HTTP 
+requests and the SPARQL client. simplejson and lxml are required by the SPARQL client as well.
 
 
 Install
