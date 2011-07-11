@@ -183,13 +183,13 @@ class TurtleParser(BaseLeplParser):
         language = Regexp(r'[a-z]+ (?:-[a-z0-9]+)*') > 'language'
         qname = ((Optional(prefixName) & ~Literal(':') & Optional(name) > dict) > self.resolve_prefix) > 'qname'        
         nodeID = ~Literal('_:') & name > self.make_blank_node
+        self.comment = '#' & Regexp(r'[^\n\r]*') & Newline()
         
         # Whie space is not significant in the following rules.
         with Separator(~Star(Any(' \t\n\r'))):
             uriref = (And(~Literal('<'), relativeURI, ~Literal('>')) > self.resolve_relative_uri) > 'uriref'
             resource = (uriref | qname > dict) > self.make_named_node
-            comment = '#' & Star(AnyBut('\u000A\u000D'))
-            ws = ~Whitespace() or ~comment
+            self.ws = ws = ~Whitespace() | ~self.comment
             
             blank = Delayed()
             integer = Regexp(r'(?:-|\+)?[0-9]+') > self.make_integer_literal
