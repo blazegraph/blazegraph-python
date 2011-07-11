@@ -34,12 +34,13 @@ def ext_modules():
             print ("Building without Cython.")
 
     result = []
-    result.append(
-        Extension(
-        'pymantic.raptor.raptor_c',
-        sources = [PACKAGE_PATH + 'pymantic.raptor.raptor_c' + source_extension],
-        libraries = ['raptor2'],
-        ))
+    try:
+        result.append(
+            Extension(
+            'pymantic.raptor.raptor_c',
+            sources = [PACKAGE_PATH + 'pymantic.raptor.raptor_c' + source_extension],
+            libraries = ['raptor2'],
+            ))
     return result
 
 def extra_setup_args():
