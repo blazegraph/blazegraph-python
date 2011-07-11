@@ -41,6 +41,8 @@ def ext_modules():
             sources = [PACKAGE_PATH + 'pymantic.raptor.raptor_c' + source_extension],
             libraries = ['raptor2'],
             ))
+    except:
+        print "Mmm, something went wrong compiling raptor... moving right along"
     return result
 
 def extra_setup_args():
