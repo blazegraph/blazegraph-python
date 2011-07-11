@@ -89,7 +89,11 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
 
 
 class Triple(tuple):
-    'Triple(subject, predicate, object)' 
+    """Triple(subject, predicate, object)
+    
+    The Triple interface represents an RDF Triple. The stringification of a 
+    Triple results in an N-Triples.
+        """ 
 
     __slots__ = () 
 
@@ -183,7 +187,20 @@ def t_as_q(graph_name, triple):
     return Quad(triple.subject, triple.predicate, triple.object, graph_name)
 
 class Literal(tuple):
-    """Literal(value, language, datatype)""" 
+    """Literal(`value`, `language`, `datatype`)
+    
+    Literals represent values such as numbers, dates and strings in RDF data. A 
+    Literal is comprised of three attributes:
+
+    * a lexical representation of the nominalValue
+    * an optional language represented by a string token
+    * an optional datatype specified by a NamedNode
+
+    Literals representing plain text in a natural language may have a language 
+    attribute specified by a text string token, as specified in [BCP47], 
+    normalized to lowercase (e.g., 'en', 'fr', 'en-gb'). 
+    
+    Literals may not have both a datatype and a language.""" 
 
     __slots__ = () 
 
@@ -248,6 +265,7 @@ class Literal(tuple):
 
 
 class NamedNode(unicode):
+    """A node identified by an IRI."""
     
     interfaceName = "NamedNode"
     
@@ -270,6 +288,13 @@ class Namespace(NamedNode):
         return NamedNode(self + name)
 
 class BlankNode(object):
+    """A BlankNode is a reference to an unnamed resource (one for which an IRI 
+    is not known), and may be used in a Triple as a unique reference to that 
+    unnamed resource.
+
+    BlankNodes are stringified by prepending "_:" to a unique value, for instance 
+    _:b142 or _:me, this stringified form is referred to as a 
+    "blank node identifier"."""
     
     interfaceName = "BlankNode"
 
@@ -291,6 +316,8 @@ def Index():
     return defaultdict(Index)
 
 class Graph(object):
+    """A `Graph` holds a set of one or more `Triple`. Implements the Python 
+    set/sequence API for `in`, `for`, and `len`"""
     
     def __init__(self, graph_uri=None):
         if not isinstance(graph_uri, NamedNode):
@@ -304,6 +331,7 @@ class Graph(object):
         
     @property
     def uri(self):
+        """URI name of the graph, if it has been given a name"""
         return self._uri
     
     def addAction(self, action):
@@ -335,11 +363,13 @@ class Graph(object):
         output graph, if:
         
         * calling triple.subject.equals with the specified subject as an 
-        argument returns true, or the subject argument is null, AND
+          argument returns true, or the subject argument is null, AND
+        
         * calling triple.property.equals with the specified property as an 
-        argument returns true, or the property argument is null, AND
+          argument returns true, or the property argument is null, AND
+        
         * calling triple.object.equals with the specified object as an argument
-        returns true, or the object argument is null
+          returns true, or the object argument is null
             
         This method implements AND functionality, so only triples matching all 
         of the given non-null arguments will be included in the result.
@@ -410,6 +440,7 @@ class Graph(object):
         return iter(self._triples)
     
     def toArray(self):
+        """Returns the set of :py:class:`Triple` within the :py:class:`Graph`"""
         return frozenset(self._triples)
 
             
@@ -493,25 +524,31 @@ class PrefixMap(dict):
     """A map of prefixes to IRIs, and provides methods to 
     turn one in to the other.
     
-    Example:
+    Example Usage:
+    
     >>> prefixes = PrefixMap()
     
     Create a new prefix mapping for the prefix "rdfs"
+    
     >>> prefixes['rdfs'] = "http://www.w3.org/2000/01/rdf-schema#"
     
     Resolve a known CURIE
+    
     >>> prefixes.resolve("rdfs:label")
     u"http://www.w3.org/2000/01/rdf-schema#label"
 
     Shrink an IRI for a known CURIE in to a CURIE
+    
     >>> prefixes.shrink("http://www.w3.org/2000/01/rdf-schema#label")
     u"rdfs:label"
     
     Attempt to resolve a CURIE with an empty prefix
+    
     >>> prefixes.resolve(":me")
     ":me"
     
     Set the default prefix and attempt to resolve a CURIE with an empty prefix
+    
     >>> prefixes.setDefault("http://example.org/bob#")
     >>> prefixes.resolve(":me")
     u"http://example.org/bob#me"
@@ -546,30 +583,36 @@ class PrefixMap(dict):
 
 class TermMap(dict):
     """A map of simple string terms to IRIs, and provides methods to turn one in
-    to the other.
-    
-    Example:
-    >>> terms = TermMap()
-    
-    Create a new term mapping for the term "member"
-    >>> terms['member'] = "http://www.w3.org/ns/org#member"
-    
-    Resolve a known term to an IRI
-    >>> terms.resolve("member")
-    u"http://www.w3.org/ns/org#member"
-    
-    Shrink an IRI for a known term to a term
-    >>> terms.shrink("http://www.w3.org/ns/org#member")
-    u"member"
-    
-    Attempt to resolve an unknown term
-    >>> terms.resolve("label")
-    None
-    
-    Set the default term vocabulary and then attempt to resolve an unknown term
-    >>> terms.setDefault("http://www.w3.org/2000/01/rdf-schema#")
-    >>> terms.resolve("label")
-    u"http://www.w3.org/2000/01/rdf-schema#label"
+to the other.
+Example usage:
+
+>>> terms = TermMap()
+
+Create a new term mapping for the term "member"
+
+>>> terms['member'] = "http://www.w3.org/ns/org#member"
+
+Resolve a known term to an IRI
+
+>>> terms.resolve("member")
+u"http://www.w3.org/ns/org#member"
+
+Shrink an IRI for a known term to a term
+
+>>> terms.shrink("http://www.w3.org/ns/org#member")
+u"member"
+
+Attempt to resolve an unknown term
+
+>>> terms.resolve("label")
+None
+
+Set the default term vocabulary and then attempt to resolve an unknown term
+
+>>> terms.setDefault("http://www.w3.org/2000/01/rdf-schema#")
+>>> terms.resolve("label")
+u"http://www.w3.org/2000/01/rdf-schema#label"
+
 """
     
     def addAll(self, other, override=False):
@@ -613,6 +656,9 @@ class TermMap(dict):
         return iri
     
 class Profile(object):
+    """Profiles provide an easy to use context for negotiating between CURIEs, 
+    Terms and IRIs."""
+    
     def __init__(self, prefixes=None, terms=None):
         self.prefixes = prefixes or PrefixMap()
         self.terms = terms or TermMap()
@@ -622,42 +668,76 @@ class Profile(object):
             self.prefixes['xsd'] = 'http://www.w3.org/2001/XMLSchema#'
     
     def resolve(toresolve):
+        """Given an Term or CURIE this method will return an IRI, or null if it 
+        cannot be resolved.
+
+        If toresolve contains a : (colon) then this method returns the result of
+        calling prefixes.resolve(toresolve)
+
+        otherwise this method returns the result of calling 
+        terms.resolve(toresolve)"""
         if ':' in toresolve:
             return self.prefixes.resolve(toresolve)
         else:
             return self.terms.resolve(toresolve)
     
     def setDefaultVocabulary(self, iri):
+        """This method sets the default vocabulary for use when resolving 
+        unknown terms, it is identical to calling the setDefault method on
+        terms."""
         self.terms.setDefault(iri)
     
     def setDefaultPrefix(self, iri):
+        """This method sets the default prefix for use when resolving CURIEs 
+        without a prefix, for example ":me", it is identical to calling the 
+        setDefault method on prefixes."""
         self.prefixes.setDefault(iri)
     
     def setTerm(self, term, iri):
+        """This method associates an IRI with a term, it is identical to 
+        calling the set method on term."""
         self.terms[term] = iri
     
     def setPrefix(self, prefix, iri):
+        """This method associates an IRI with a prefix, it is identical to 
+        calling the set method on prefixes."""
         self.prefixes[prefix] = iri
     
     def importProfile(self, profile, override=False):
+        """This method functions the same as calling 
+        prefixes.addAll(profile.prefixes, override) and 
+        terms.addAll(profile.terms, override), and allows easy updating and 
+        merging of different profiles.
+
+        This method returns the instance on which it was called."""
         self.prefixes.addAll(profile.prefixes, overide)
         self.terms.addAll(profile.terms, override)
         return self
 
 class RDFEnvironment(Profile):
+    """The RDF Environment is an interface which exposes a high level API for 
+    working with RDF in a programming environment."""
     def createBlankNode(self):
+        """Creates a new :py:class:`BlankNode`."""
         return BlankNode()
     
     def createNamedNode(self, value):
+        """Creates a new :py:class:`NamedNode`."""
         return NamedNode(value)
     
     def createLiteral(self, value, language=None, datatype=None):
+        """Creates a :py:class:`Literal` given a value, an optional language and/or an 
+        optional datatype."""
         return Literal(value, language, datatype)
     
     def createTriple(self, subject, predicate, object):
+        """Creates a :py:class:`Triple` given a subject, predicate and object. """
         return Triple(subject, predicate, object)
     
     def createGraph(self, triples = tuple()):
+        """Creates a new :py:class:`Graph`, an optional sequence of :py:class:`Triple` to include within 
+        the graph may be specified, this allows easy transition between native 
+        sequences and Graphs and is the counterpart for :py:meth:`Graph.toArray`."""
         g = Graph()
         g.addAll(triples)
         return g

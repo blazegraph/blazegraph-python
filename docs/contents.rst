@@ -6,6 +6,7 @@ Pymantic documentation contents
     :maxdepth: 3
 
     index
+    modules/primitives
     
 
 Indices, glossary and tables
