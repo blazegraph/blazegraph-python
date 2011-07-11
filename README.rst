@@ -11,7 +11,7 @@ Quick Start
 :: 
 
     >>> from pymantic.rdf import *
-    >>> from pymantic.parers import turtle_parser
+    >>> from pymantic.parsers import turtle_parser
     >>> graph = turtle_parser.parse('https://raw.github.com/norcalrdf/pymantic/master/examples/foaf-bond.ttl')
     >>> bond_james = Resource.in_graph(graph, 'http://example.org/stuff/Bond')
     >>> print "%s knows:" % bond_james['http://xmlns.com/foaf/0.1/name']
