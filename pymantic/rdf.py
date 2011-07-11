@@ -239,6 +239,13 @@ class Resource(object):
             return getitem_iter_results()
         else:
             return self.classify(self.graph, util.one_or_none(objects))
+        
+    def get_scalar(self, key):
+        """As __getitem__ access, but pretend the key is a scalar even if it isn't.
+        
+        Expect random exceptions if using this carelessly."""
+        predicate, objects = self._objects_for_key(key)
+        return self.classify(self.graph, util.one_or_none(objects))
     
     # Set item
     
