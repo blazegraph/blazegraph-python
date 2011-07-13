@@ -11,7 +11,7 @@ provide a simple API for working directly with Triples, and RDF Terms.
     Data Structures
     ===============
     
-    .. warning:: Currently Pyamntic does restrict data structures to the RDF data model. 
+    .. warning:: Currently Pyamntic does *NOT* restrict data structures to the RDF data model. 
         For example Literals are allowed in the subject and predicate position, seralizing
         these is imposible
 
