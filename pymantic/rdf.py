@@ -14,7 +14,7 @@ from pymantic.primitives import *
 log = logging.getLogger(__name__)
 
 class MetaResource(type):
-    """Aggregates namespace and scalar information."""
+    """Aggregates Prefix and scalar information."""
     
     _classes = {} # Map of RDF classes to Python classes.
     
@@ -28,7 +28,7 @@ class MetaResource(type):
                 scalars.update(base.scalars)
         if 'prefixes' in dct:
             for prefix in dct['prefixes']:
-                prefixes[prefix] = Namespace(dct['prefixes'][prefix])
+                prefixes[prefix] = Prefix(dct['prefixes'][prefix])
         dct['prefixes'] = prefixes
         if 'scalars' in dct:
             for scalar in dct['scalars']:
@@ -62,7 +62,7 @@ class Resource(object):
        mapping prefixes to URLs in the 'prefixes' attribute of your subclass.
        The prefixes dictionaries on all parents are merged with this
        dictionary, and those at the bottom are prioritized. The values in the
-       dictionaries will automatically be turned into rdflib Namespace objects.
+       dictionaries will automatically be turned into rdflib Prefix objects.
     
     2) Define predicates as scalars. This asserts that a given predicate on this
        resource will only have zero or one value for a given language or
@@ -109,8 +109,8 @@ class Resource(object):
     @classmethod
     def new(cls, graph, subject = None):
         """Add type information to the graph for a new instance of this Resource."""
-        #for prefix, namespace in cls.prefixes.iteritems():
-            #graph.bind(prefix, namespace)
+        #for prefix, Prefix in cls.prefixes.iteritems():
+            #graph.bind(prefix, Prefix)
         if subject is None:
             subject = BlankNode()
         if not isinstance(subject, NamedNode):

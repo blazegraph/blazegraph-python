@@ -5,9 +5,9 @@ import pymantic.rdf
 import pymantic.util
 from pymantic.primitives import *
 
-XSD = Namespace('http://www.w3.org/2001/XMLSchema#')
+XSD = Prefix('http://www.w3.org/2001/XMLSchema#')
 
-RDF = Namespace("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+RDF = Prefix("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 
 class TestRDF(unittest.TestCase):
     def tearDown(self):
@@ -15,17 +15,17 @@ class TestRDF(unittest.TestCase):
     
     def testCurieURI(self):
         """Test CURIE parsing of explicit URIs."""
-        test_ns = {'http': Namespace('WRONG!'),
-                   'urn': Namespace('WRONG!'),}
+        test_ns = {'http': Prefix('WRONG!'),
+                   'urn': Prefix('WRONG!'),}
         self.assertEqual(pymantic.rdf.parse_curie('http://oreilly.com', test_ns),
                          NamedNode('http://oreilly.com'))
         self.assertEqual(pymantic.rdf.parse_curie('urn:isbn:1234567890123', test_ns),
                          NamedNode('urn:isbn:1234567890123'))
     
-    def testCurieDefaultNamespace(self):
-        """Test CURIE parsing of CURIEs in the default namespace."""
-        test_ns = {'': Namespace('foo/'),
-                   'wrong': Namespace('WRONG!')}
+    def testCurieDefaultPrefix(self):
+        """Test CURIE parsing of CURIEs in the default Prefix."""
+        test_ns = {'': Prefix('foo/'),
+                   'wrong': Prefix('WRONG!')}
         self.assertEqual(pymantic.rdf.parse_curie('bar', test_ns),
                          NamedNode('foo/bar'))
         self.assertEqual(pymantic.rdf.parse_curie('[bar]', test_ns),
@@ -37,10 +37,10 @@ class TestRDF(unittest.TestCase):
     
     def testCurieprefixes(self):
         """Test CURIE parsing of CURIEs in non-default prefixes."""
-        test_ns = {'': Namespace('WRONG!'),
-                   'foo': Namespace('foobly/'),
-                   'bar': Namespace('bardle/'),
-                   'http': Namespace('reallybadidea/'),}
+        test_ns = {'': Prefix('WRONG!'),
+                   'foo': Prefix('foobly/'),
+                   'bar': Prefix('bardle/'),
+                   'http': Prefix('reallybadidea/'),}
         self.assertEqual(pymantic.rdf.parse_curie('foo:aap', test_ns),
                          NamedNode('foobly/aap'))
         self.assertEqual(pymantic.rdf.parse_curie('[bar:aap]', test_ns),
@@ -58,7 +58,7 @@ class TestRDF(unittest.TestCase):
     
     def testUnparseableCuries(self):
         """Test some CURIEs that shouldn't parse."""
-        test_ns = {'foo': Namespace('WRONG!'),}
+        test_ns = {'foo': Prefix('WRONG!'),}
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, '[bar]', test_ns)
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, 'bar', test_ns)
         self.assertRaises(ValueError, pymantic.rdf.parse_curie, 'bar:baz', test_ns)
@@ -75,28 +75,28 @@ class TestRDF(unittest.TestCase):
             __metaclass__ = pymantic.rdf.MetaResource
             prefixes = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         
-        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
-                                          'baz': Namespace('garply'),
-                                          'meme': Namespace('lolcatz!'),})
+        self.assertEqual(Foo.prefixes, {'foo': Prefix('bar'),
+                                          'baz': Prefix('garply'),
+                                          'meme': Prefix('lolcatz!'),})
     
-    def testMetaResourceNamespaceInheritance(self):
-        """Test the composition of namespace dictionaries by MetaResource."""
+    def testMetaResourcePrefixInheritance(self):
+        """Test the composition of Prefix dictionaries by MetaResource."""
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
             prefixes = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         class Bar(Foo):
             prefixes = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',}
-        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
-                                          'baz': Namespace('garply'),
-                                          'meme': Namespace('lolcatz!'),})
-        self.assertEqual(Bar.prefixes, {'foo': Namespace('bar'),
-                                          'baz': Namespace('garply'),
-                                          'meme': Namespace('lolcatz!'),
-                                          'allyourbase': Namespace('arebelongtous!'),
-                                          'bunny': Namespace('pancake'),})
+        self.assertEqual(Foo.prefixes, {'foo': Prefix('bar'),
+                                          'baz': Prefix('garply'),
+                                          'meme': Prefix('lolcatz!'),})
+        self.assertEqual(Bar.prefixes, {'foo': Prefix('bar'),
+                                          'baz': Prefix('garply'),
+                                          'meme': Prefix('lolcatz!'),
+                                          'allyourbase': Prefix('arebelongtous!'),
+                                          'bunny': Prefix('pancake'),})
     
-    def testMetaResourceNamespaceInheritanceReplacement(self):
-        """Test the composition of namespace dictionaries by MetaResource where
+    def testMetaResourcePrefixInheritanceReplacement(self):
+        """Test the composition of Prefix dictionaries by MetaResource where
         some prefixes on the parent get replaced."""
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
@@ -104,14 +104,14 @@ class TestRDF(unittest.TestCase):
         class Bar(Foo):
             prefixes = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',
                           'foo': 'notbar', 'baz': 'notgarply',}
-        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
-                                          'baz': Namespace('garply'),
-                                          'meme': Namespace('lolcatz!'),})
-        self.assertEqual(Bar.prefixes, {'foo': Namespace('notbar'),
-                                          'baz': Namespace('notgarply'),
-                                          'meme': Namespace('lolcatz!'),
-                                          'allyourbase': Namespace('arebelongtous!'),
-                                          'bunny': Namespace('pancake'),})
+        self.assertEqual(Foo.prefixes, {'foo': Prefix('bar'),
+                                          'baz': Prefix('garply'),
+                                          'meme': Prefix('lolcatz!'),})
+        self.assertEqual(Bar.prefixes, {'foo': Prefix('notbar'),
+                                          'baz': Prefix('notgarply'),
+                                          'meme': Prefix('lolcatz!'),
+                                          'allyourbase': Prefix('arebelongtous!'),
+                                          'bunny': Prefix('pancake'),})
 
     def testResourceEquality(self):
         graph = Graph()

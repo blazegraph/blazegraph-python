@@ -1,5 +1,5 @@
 __all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
-           'Namespace', 'BlankNode', 'Graph', 'Dataset','parse_curie', 
+           'Prefix', 'BlankNode', 'Graph', 'Dataset','parse_curie', 
            'is_language', 'lang_match', 'parse_curie' ]
 
 import collections
@@ -283,7 +283,8 @@ class NamedNode(unicode):
         return '<' + nt_escape(quote_normalized_iri(self.value)) + '>'
     
 
-class Namespace(NamedNode):
+class Prefix(NamedNode):
+    """Node that when called returns the the argument conctantated with self."""
     def __call__(self, name):
         return NamedNode(self + name)
 
