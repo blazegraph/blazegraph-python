@@ -1,3 +1,7 @@
 pymantic.egg-info
 *.pyc
 *.so
+include
+lib
+share
+docs/_build
