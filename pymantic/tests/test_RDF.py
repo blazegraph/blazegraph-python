@@ -35,8 +35,8 @@ class TestRDF(unittest.TestCase):
         self.assertEqual(pymantic.rdf.parse_curie('[aap]', test_ns),
                          NamedNode('foo/aap'))
     
-    def testCurieNamespaces(self):
-        """Test CURIE parsing of CURIEs in non-default namespaces."""
+    def testCurieprefixes(self):
+        """Test CURIE parsing of CURIEs in non-default prefixes."""
         test_ns = {'': Namespace('WRONG!'),
                    'foo': Namespace('foobly/'),
                    'bar': Namespace('bardle/'),
@@ -69,13 +69,13 @@ class TestRDF(unittest.TestCase):
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
     
-    def testMetaResourceNamespaces(self):
-        """Test the handling of namespaces by MetaResource."""
+    def testMetaResourceprefixes(self):
+        """Test the handling of prefixes by MetaResource."""
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
-            namespaces = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
+            prefixes = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         
-        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
                                           'baz': Namespace('garply'),
                                           'meme': Namespace('lolcatz!'),})
     
@@ -83,13 +83,13 @@ class TestRDF(unittest.TestCase):
         """Test the composition of namespace dictionaries by MetaResource."""
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
-            namespaces = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
+            prefixes = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         class Bar(Foo):
-            namespaces = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',}
-        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+            prefixes = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',}
+        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
                                           'baz': Namespace('garply'),
                                           'meme': Namespace('lolcatz!'),})
-        self.assertEqual(Bar.namespaces, {'foo': Namespace('bar'),
+        self.assertEqual(Bar.prefixes, {'foo': Namespace('bar'),
                                           'baz': Namespace('garply'),
                                           'meme': Namespace('lolcatz!'),
                                           'allyourbase': Namespace('arebelongtous!'),
@@ -97,17 +97,17 @@ class TestRDF(unittest.TestCase):
     
     def testMetaResourceNamespaceInheritanceReplacement(self):
         """Test the composition of namespace dictionaries by MetaResource where
-        some namespaces on the parent get replaced."""
+        some prefixes on the parent get replaced."""
         class Foo(object):
             __metaclass__ = pymantic.rdf.MetaResource
-            namespaces = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
+            prefixes = {'foo': 'bar', 'baz': 'garply', 'meme': 'lolcatz!',}
         class Bar(Foo):
-            namespaces = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',
+            prefixes = {'allyourbase': 'arebelongtous!', 'bunny': 'pancake',
                           'foo': 'notbar', 'baz': 'notgarply',}
-        self.assertEqual(Foo.namespaces, {'foo': Namespace('bar'),
+        self.assertEqual(Foo.prefixes, {'foo': Namespace('bar'),
                                           'baz': Namespace('garply'),
                                           'meme': Namespace('lolcatz!'),})
-        self.assertEqual(Bar.namespaces, {'foo': Namespace('notbar'),
+        self.assertEqual(Bar.prefixes, {'foo': Namespace('notbar'),
                                           'baz': Namespace('notgarply'),
                                           'meme': Namespace('lolcatz!'),
                                           'allyourbase': Namespace('arebelongtous!'),
@@ -133,7 +133,7 @@ class TestRDF(unittest.TestCase):
         """Test classification of a resource."""
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -149,13 +149,13 @@ class TestRDF(unittest.TestCase):
         classes."""
         @pymantic.rdf.register_class('foaf:Organization')
         class Organization(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'foaf': 'http://xmlns.com/foaf/0.1/',
             }
         
         @pymantic.rdf.register_class('foaf:Group')
         class Group(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'foaf': 'http://xmlns.com/foaf/0.1/',
             }
         
@@ -328,21 +328,21 @@ class TestRDF(unittest.TestCase):
         test_subject3 = NamedNode('http://example.com/aposi2')
         test_subject4 = NamedNode('http://example.com/possip1')
         
-        NAMESPACES = {
+        shared_prefixes = {
             'gr': 'http://purl.org/goodrelations/',
         }
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
         
         @pymantic.rdf.register_class('gr:ActualProductOrServiceInstance')
         class ActualProduct(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
             
         @pymantic.rdf.register_class('gr:ProductOrServicesSomeInstancesPlaceholder')
         class PlaceholderProduct(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
         
         offering = Offering.new(graph, test_subject1)
         aposi1 = ActualProduct.new(graph, test_subject2)
@@ -376,23 +376,23 @@ class TestRDF(unittest.TestCase):
         test_subject2 = NamedNode('http://example.com/aposi')
         test_subject4 = NamedNode('http://example.com/possip')
         
-        NAMESPACES = {
+        shared_prefixes = {
             'gr': 'http://purl.org/goodrelations/',
         }
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
             
             scalars = frozenset(('gr:includes',))
         
         @pymantic.rdf.register_class('gr:ActualProductOrServiceInstance')
         class ActualProduct(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
             
         @pymantic.rdf.register_class('gr:ProductOrServicesSomeInstancesPlaceholder')
         class PlaceholderProduct(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
         
         offering = Offering.new(graph, test_subject1)
         aposi1 = ActualProduct.new(graph, test_subject2)
@@ -426,19 +426,19 @@ class TestRDF(unittest.TestCase):
         test_subject1 = NamedNode('http://example.com/offering')
         test_subject2 = NamedNode('http://example.com/aposi')
         
-        NAMESPACES = {
+        shared_prefixes = {
             'gr': 'http://purl.org/goodrelations/',
         }
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
             
             scalars = frozenset(('gr:includes',))
         
         @pymantic.rdf.register_class('gr:ActualProductOrServiceInstance')
         class ActualProduct(pymantic.rdf.Resource):
-            namespaces = NAMESPACES
+            prefixes = shared_prefixes
         
         offering = Offering.new(graph, test_subject1)
         aposi1 = ActualProduct.new(graph, test_subject2)
@@ -473,13 +473,13 @@ class TestRDF(unittest.TestCase):
         """Test instantiating a class when accessing a predicate."""
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
         @pymantic.rdf.register_class('gr:PriceSpecification')
         class PriceSpecification(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -502,13 +502,13 @@ class TestRDF(unittest.TestCase):
         """Test assigning an instance of a resource to a predicate."""
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
         @pymantic.rdf.register_class('gr:PriceSpecification')
         class PriceSpecification(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -534,7 +534,7 @@ class TestRDF(unittest.TestCase):
         
         @pymantic.rdf.register_class('foaf:Person')
         class Person(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'foaf': 'http://xmlns.com/foaf/0.1/',
             }
         
@@ -547,7 +547,7 @@ class TestRDF(unittest.TestCase):
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -586,13 +586,13 @@ class TestRDF(unittest.TestCase):
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
             
         @pymantic.rdf.register_class('gr:PriceSpecification')
         class PriceSpecification(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -617,7 +617,7 @@ class TestRDF(unittest.TestCase):
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         
@@ -666,7 +666,7 @@ class TestRDF(unittest.TestCase):
         
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
             
@@ -691,7 +691,7 @@ class TestRDF(unittest.TestCase):
         """Test erasing an object from the graph."""
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
             
@@ -717,7 +717,7 @@ class TestRDF(unittest.TestCase):
         """Test classifying objects with one or more unbound classes."""
         @pymantic.rdf.register_class('gr:Offering')
         class Offering(pymantic.rdf.Resource):
-            namespaces = {
+            prefixes = {
                 'gr': 'http://purl.org/goodrelations/',
             }
         

@@ -19,20 +19,20 @@ class MetaResource(type):
     _classes = {} # Map of RDF classes to Python classes.
     
     def __new__(cls, name, bases, dct):
-        namespaces = {}
+        prefixes = {}
         scalars = set()
         for base in bases:
-            if hasattr(base, 'namespaces'):
-                namespaces.update(base.namespaces)
+            if hasattr(base, 'prefixes'):
+                prefixes.update(base.prefixes)
             if hasattr(base, 'scalars'):
                 scalars.update(base.scalars)
-        if 'namespaces' in dct:
-            for namespace in dct['namespaces']:
-                namespaces[namespace] = Namespace(dct['namespaces'][namespace])
-        dct['namespaces'] = namespaces
+        if 'prefixes' in dct:
+            for prefix in dct['prefixes']:
+                prefixes[prefix] = Namespace(dct['prefixes'][prefix])
+        dct['prefixes'] = prefixes
         if 'scalars' in dct:
             for scalar in dct['scalars']:
-                scalars.add(parse_curie(scalar, namespaces))
+                scalars.add(parse_curie(scalar, prefixes))
         dct['scalars'] = frozenset(scalars)
         return type.__new__(cls, name, bases, dct)
 
@@ -57,17 +57,17 @@ class Resource(object):
     sets. By subclassing Resource, you can take advantage of a number of
     quality-of-life features:
     
-    1) Bind namespaces to prefixes, and refer to them using CURIEs when
+    1) Bind prefixes to prefixes, and refer to them using CURIEs when
        accessing predicates or explicitly resolving CURIEs. Store a dictionary
-       mapping prefixes to URLs in the 'namespaces' attribute of your subclass.
-       The namespaces dictionaries on all parents are merged with this
+       mapping prefixes to URLs in the 'prefixes' attribute of your subclass.
+       The prefixes dictionaries on all parents are merged with this
        dictionary, and those at the bottom are prioritized. The values in the
        dictionaries will automatically be turned into rdflib Namespace objects.
     
     2) Define predicates as scalars. This asserts that a given predicate on this
        resource will only have zero or one value for a given language or
        data-type, or one reference to another resource. This is done using the
-       'scalars' set, which is processed and merged just like namespaces.
+       'scalars' set, which is processed and merged just like prefixes.
         
     3) Automatically classify certain RDF types as certain Resource subclasses.
        Decorate your class with the pymantic.RDF.register_class decorator, and
@@ -91,7 +91,7 @@ class Resource(object):
     
     __metaclass__ = MetaResource
     
-    namespaces = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
+    prefixes = {'rdf': 'http://www.w3.org/1999/02/22-rdf-syntax-ns#',
                   'rdfs': 'http://www.w3.org/2000/01/rdf-schema#'}
     
     scalars = frozenset(('rdfs:label',))
@@ -109,7 +109,7 @@ class Resource(object):
     @classmethod
     def new(cls, graph, subject = None):
         """Add type information to the graph for a new instance of this Resource."""
-        #for prefix, namespace in cls.namespaces.iteritems():
+        #for prefix, namespace in cls.prefixes.iteritems():
             #graph.bind(prefix, namespace)
         if subject is None:
             subject = BlankNode()
@@ -137,8 +137,8 @@ class Resource(object):
         
     @classmethod
     def resolve(cls, key):
-        """Use this class's namespaces to resolve a curie"""
-        return parse_curie(key, cls.namespaces)
+        """Use this class's prefixes to resolve a curie"""
+        return parse_curie(key, cls.prefixes)
     
     def __eq__(self, other):
         if isinstance(other, Resource):
