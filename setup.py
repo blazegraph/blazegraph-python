@@ -45,6 +45,7 @@ setup(name='pymantic',
       scripts = [
           'pymantic/scripts/named_graph_to_nquads',
       ],
-      ext_modules = setupinfo.ext_modules(),
-      **setupinfo.extra_setup_args()
+      #Ignoring unfinished C module
+      #ext_modules = setupinfo.ext_modules(),
+      #**setupinfo.extra_setup_args()
 )
