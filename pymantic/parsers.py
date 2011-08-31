@@ -29,6 +29,7 @@ class BaseLeplParser(object):
 
     def __init__(self, environment=None):
         self.env = environment or pymantic.primitives.RDFEnvironment()
+        self.profile = self.env.createProfile()
         self._call_state = local()
 
     def make_datatype_literal(self, values):
@@ -352,14 +353,20 @@ class TurtleParser(BaseLeplParser):
                            Literal('"')) > self.string_contents
  
         STRING_LITERAL_LONG1 = (Literal("'''") &\
-                                Star(Optional( Literal("'") | Literal("''")) &\
+                                Star(Optional( Regexp("'|''")) &\
                                      ( Regexp(ur"[^'\\]") | ECHAR | UCHAR ) ) &\
                                 Literal("'''")) > self.string_contents
  
         STRING_LITERAL_LONG2 = (Literal('"""') &\
-                                Star(Optional( Literal('"') | Literal('""') ) &\
+                                Star(Optional( Regexp(ur'"|""') ) &\
                                      ( Regexp(ur'[^\"\\]') | ECHAR | UCHAR ) ) &\
                                 Literal('"""')) > self.string_contents
+        
+        self.INTEGER = Regexp(ur'[+-]?[0-9]+') >> self.int_value
+ 
+        self.DECIMAL = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+)') >> self.decimal_value
+        
+        self.DOUBLE = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+|[0-9]+)[eE][+-]?[0-9]+') >> self.double_value
         
     def _prepare_parse(self, graph):
         super(TurtleParser, self)._prepare_parse(graph)
@@ -385,6 +392,15 @@ class TurtleParser(BaseLeplParser):
     
     def string_contents(self, string_chars):
         return ''.join(string_chars[1:-1])
+    
+    def int_value(self, value):
+        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:integer'))
+    
+    def decimal_value(self, value):
+        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:decimal'))
+    
+    def double_value(self, value):
+        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:double'))
 
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 

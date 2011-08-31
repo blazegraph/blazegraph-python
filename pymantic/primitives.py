@@ -697,9 +697,9 @@ class Profile(object):
                 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
         if 'xsd' not in self.prefixes:
             self.prefixes['xsd'] = 'http://www.w3.org/2001/XMLSchema#'
-
-    def resolve(toresolve):
-        """Given an Term or CURIE this method will return an IRI, or null if it
+    
+    def resolve(self, toresolve):
+        """Given an Term or CURIE this method will return an IRI, or null if it 
         cannot be resolved.
 
         If toresolve contains a : (colon) then this method returns the result
