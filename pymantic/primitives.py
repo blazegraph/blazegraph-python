@@ -1,6 +1,6 @@
 __all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
-           'Prefix', 'BlankNode', 'Graph', 'Dataset','parse_curie', 
-           'is_language', 'lang_match', 'parse_curie' ]
+           'Prefix', 'BlankNode', 'Graph', 'Dataset', 'parse_curie',
+           'is_language', 'lang_match', 'parse_curie']
 
 import collections
 import datetime
@@ -13,6 +13,7 @@ import pymantic.uri_schemes as uri_schemes
 from pymantic.util import quote_normalized_iri
 from pymantic.serializers import nt_escape
 
+
 def is_language(lang):
     """Is something a valid XML language?"""
     if isinstance(lang, NamedNode):
@@ -21,7 +22,7 @@ def is_language(lang):
 
 def lang_match(lang1, lang2):
     """Determines if two languages are, in fact, the same language.
-    
+
     Eg: en is the same as en-us and en-uk."""
     if lang1 is None and lang2 is None:
         return True
@@ -85,7 +86,6 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
             else:
                 return uri.replace(namespace, prefix + seperator)
     return uri
-
 
 
 class Triple(tuple):
@@ -376,30 +376,30 @@ class Graph(object):
         of the given non-null arguments will be included in the result.
         """
         if subject:
-            if predicate: # s, p, ???
-                if object: # s, p, o
+            if predicate:  # s, p, ???
+                if object:  # s, p, o
                     if Triple(subject, predicate, object) in self:
                         yield Triple(subject, predicate, object)
-                else: # s, p, ?var
+                else:  # s, p, ?var
                     for triple in self._spo[subject][predicate].itervalues():
                         yield triple
-            else: # s, ?var, ???
-                if object: # s, ?var, o
+            else:  # s, ?var, ???
+                if object:  # s, ?var, o
                     for triple in self._osp[object][subject].itervalues():
                         yield triple
-                else: # s, ?var, ?var
+                else:  # s, ?var, ?var
                     for predicate in self._spo[subject]:
                         for triple in self._spo[subject][predicate].itervalues():
                             yield triple
-        elif predicate: # ?var, p, ???
-            if object: # ?var, p, o
+        elif predicate:  # ?var, p, ???
+            if object:  # ?var, p, o
                 for triple in self._pos[predicate][object].itervalues():
                     yield triple
-            else: # ?var, p, ?var
+            else:  # ?var, p, ?var
                 for object in self._pos[predicate]:
                     for triple in self._pos[predicate][object].itervalues():
                         yield triple
-        elif object: # ?var, ?var, o
+        elif object:  # ?var, ?var, o
             for subject in self._osp[object]:
                 for triple in self._osp[object][subject].itervalues():
                     yield triple
@@ -444,8 +444,6 @@ class Graph(object):
         """Returns the set of :py:class:`Triple` within the :py:class:`Graph`"""
         return frozenset(self._triples)
 
-            
-        
 
 class Dataset(object):
     
