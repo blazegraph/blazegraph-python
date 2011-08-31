@@ -19,7 +19,7 @@ class MetaResource(type):
     _classes = {} # Map of RDF classes to Python classes.
 
     def __new__(cls, name, bases, dct):
-        prefixes = {}
+        prefixes = PrefixMap()
         scalars = set()
         for base in bases:
             if hasattr(base, 'prefixes'):

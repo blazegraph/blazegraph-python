@@ -1,6 +1,6 @@
 __all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
-           'Prefix', 'BlankNode', 'Graph', 'Dataset', 'parse_curie',
-           'is_language', 'lang_match', 'parse_curie']
+           'Prefix', 'BlankNode', 'Graph', 'Dataset', 'PrefixMap', 'TermMap', 
+           'parse_curie', 'is_language', 'lang_match', 'parse_curie']
 
 import collections
 import datetime
@@ -12,9 +12,6 @@ import pymantic.uri_schemes as uri_schemes
 
 from pymantic.util import quote_normalized_iri
 from pymantic.serializers import nt_escape
-
-
-XSD = Prefix("http://www.w3.org/2001/XMLSchema#")
 
 
 def is_language(lang):
@@ -63,11 +60,11 @@ def parse_curie(curie, prefixes):
     if not reference and '' in prefixes:
         reference = prefix
         return Prefix(prefixes[''])(reference)
-    if prefix in namespaces:
+    if prefix in prefixes:
         return Prefix(prefixes[prefix])(reference)
     else:
-        raise ValueError('Could not parse CURIE prefix %s from namespaces %s' %
-                        (prefix, namespaces))
+        raise ValueError('Could not parse CURIE prefix %s from prefixes %s' %
+                        (prefix, prefixes))
 
 
 def parse_curies(curies, namespaces):
@@ -306,6 +303,9 @@ class Prefix(NamedNode):
     self."""
     def __call__(self, name):
         return NamedNode(self + name)
+
+    
+XSD = Prefix("http://www.w3.org/2001/XMLSchema#")
 
 
 class BlankNode(object):
