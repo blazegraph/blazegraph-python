@@ -38,7 +38,7 @@ def lang_match(lang1, lang2):
                                      lang1[2] == lang2[2])
 
 
-def parse_curie(curie, namespaces):
+def parse_curie(curie, prefixes):
     """
     Parses a CURIE within the context of the given namespaces. Will also accept
     explicit URIs and wrap them in an rdflib URIRef.
@@ -60,11 +60,11 @@ def parse_curie(curie, namespaces):
     if not definitely_curie:
         if prefix in uri_schemes.schemes:
             return NamedNode(curie)
-    if not reference and '' in namespaces:
+    if not reference and '' in prefixes:
         reference = prefix
-        return namespaces[''](reference)
+        return Prefix(prefixes[''])(reference)
     if prefix in namespaces:
-        return namespaces[prefix](reference)
+        return Prefix(prefixes[prefix])(reference)
     else:
         raise ValueError('Could not parse CURIE prefix %s from namespaces %s' %
                         (prefix, namespaces))
