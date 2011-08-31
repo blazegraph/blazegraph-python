@@ -158,10 +158,10 @@ class NQuadsParser(BaseNParser):
 
 nquads_parser = NQuadsParser()
 
-class TurtleParser(BaseLeplParser):
+class ClassicTurtleParser(BaseLeplParser):
 
     def __init__(self, environment=None):
-        super(TurtleParser, self).__init__(environment)
+        super(ClassicTurtleParser, self).__init__(environment)
 
         self.absolute_uri_re = re.compile('^[^/]+:')
 
@@ -311,7 +311,80 @@ class TurtleParser(BaseLeplParser):
         return self.env.createLiteral(languageable['quotedString'],
                                       language = languageable.get('language'))
 
-turtle_parser = TurtleParser()
+classic_turtle_parser = ClassicTurtleParser()
+
+class TurtleParser(BaseLeplParser):
+    RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
+    
+    def __init__(self, environment=None):
+        super(TurtleParser, self).__init__(environment)
+        
+        UCHAR = (Regexp(ur'\\u([0-9a-fA-F]{4})') |\
+                 Regexp(ur'\\U([0-9a-fA-F]{8})')) >> self.decode_uchar
+        
+        ECHAR = Regexp(ur'\\([tbnrf\\"\'])') >> self.decode_echar
+        
+        PN_CHARS_BASE = Regexp(ur'[A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02FF'
+                               ur'\u0370-\u037D\u037F-\u1FFF\u200C-\u200D\u2070-\u218F'
+                               ur'\u2C00-\u2FEF\u3001-\uD7FF\uF900-\uFDCF\uFDF0-\uFFFD'
+                               ur'\U00010000-\U000EFFFF]') | UCHAR
+        
+        PN_CHARS_U = PN_CHARS_BASE | Literal('_')
+        
+        PN_CHARS = PN_CHARS_U | Regexp(ur'[\-0-9\u00B7\u0300-\u036F\u203F-\u2040]')
+        
+        PN_PREFIX = PN_CHARS_BASE & Optional(Star(PN_CHARS | Literal(".")) & PN_CHARS ) > ''.join
+        
+        PN_LOCAL = (PN_CHARS_U | Regexp('[0-9]')) & Optional(Star(PN_CHARS | Literal(".")) & PN_CHARS) > ''.join
+        
+        WS = Regexp(ur'[\t\n\r ]')
+        
+        ANON = Literal('[') & Star(WS) & Literal(']')
+        
+        NIL = Literal('(') & Star(WS) & Literal(')')
+        
+        STRING_LITERAL1 = (Literal("'") &\
+                           Star(Regexp(ur"[^'\\\n\r]") | ECHAR | UCHAR ) &\
+                           Literal("'")) > self.string_contents
+ 
+        STRING_LITERAL2 = (Literal('"') &\
+                           Star(Regexp(ur'[^"\\\n\r]') | ECHAR | UCHAR ) &\
+                           Literal('"')) > self.string_contents
+ 
+        STRING_LITERAL_LONG1 = (Literal("'''") &\
+                                Star(Optional( Literal("'") | Literal("''")) &\
+                                     ( Regexp(ur"[^'\\]") | ECHAR | UCHAR ) ) &\
+                                Literal("'''")) > self.string_contents
+ 
+        STRING_LITERAL_LONG2 = (Literal('"""') &\
+                                Star(Optional( Literal('"') | Literal('""') ) &\
+                                     ( Regexp(ur'[^\"\\]') | ECHAR | UCHAR ) ) &\
+                                Literal('"""')) > self.string_contents
+        
+    def _prepare_parse(self, graph):
+        super(TurtleParser, self)._prepare_parse(graph)
+        self._call_state.base_uri = None
+        self._call_state.prefixes = {}
+        self._call_state.current_subject = None
+        self._call_state.current_predicate = None
+    
+    def decode_uchar(self, uchar_string):
+        return unichr(int(uchar_string, 16))
+    
+    def decode_echar(self, echar_string):
+        return {
+            't': '\t',
+            'b': '\b',
+            'n': '\n',
+            'r': '\r',
+            'f': '\f',
+            '\\': '\\',
+            '"': '"',
+            "'": "'",
+            }[echar_string]
+    
+    def string_contents(self, string_chars):
+        return ''.join(string_chars[1:-1])
 
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 
