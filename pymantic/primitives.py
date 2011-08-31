@@ -668,7 +668,7 @@ class Profile(object):
         if 'xsd' not in self.prefixes:
             self.prefixes['xsd'] = 'http://www.w3.org/2001/XMLSchema#'
     
-    def resolve(toresolve):
+    def resolve(self, toresolve):
         """Given an Term or CURIE this method will return an IRI, or null if it 
         cannot be resolved.
 
