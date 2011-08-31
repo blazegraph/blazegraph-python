@@ -88,9 +88,12 @@ class BaseNParser(BaseLeplParser):
         self.name = Regexp(r'[A-Za-z][A-Za-z0-9]*')
         self.absoluteURI = Regexp(r'(?:[ -=?-[\]-~]|\\[trn"\\]|\\u[0-9A-Fa-f]{4}|\\U[0-9A-Fa-f]{8})+')
         self.language = Regexp(r'[a-z]+(?:-[a-zA-Z0-9]+)*')
-        self.uriref = ~Literal('<') & self.absoluteURI & ~Literal('>') > self.make_named_node
-        self.datatypeString = ~Literal('"') & self.string & ~Literal('"') & ~Literal('^^') & self.uriref > self.make_datatype_literal
-        self.langString = ~Literal('"') & self.string & ~Literal('"') & Optional(~Literal('@') & self.language) > self.make_language_literal
+        self.uriref = ~Literal('<') & self.absoluteURI & ~Literal('>') \
+            > self.make_named_node
+        self.datatypeString = ~Literal('"') & self.string & ~Literal('"') \ 
+            & ~Literal('^^') & self.uriref > self.make_datatype_literal
+        self.langString = ~Literal('"') & self.string & ~Literal('"') \ 
+            & Optional(~Literal('@') & self.language) > self.make_language_literal
         self.literal = self.datatypeString | self.langString
         self.nodeID = ~Literal('_:') & self.name > self.make_blank_node
         self.object_ = self.uriref | self.nodeID | self.literal
@@ -116,8 +119,11 @@ class NTriplesParser(BaseNParser):
 
     def __init__(self, environment=None):
         super(NTriplesParser, self).__init__(environment)
-        self.triple = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) & self.object_ & ~Star(Space()) & ~Literal('.') & ~Star(Space()) >= self.make_triple
-        self.line = Star(Space()) & Optional(~self.triple | ~self.comment) & ~Literal('\n')
+        self.triple = self.subject & ~Plus(Space()) & self.predicate & \
+            ~Plus(Space()) & self.object_ & ~Star(Space()) & ~Literal('.') \
+            & ~Star(Space()) >= self.make_triple
+        self.line = Star(Space()) & Optional(~self.triple | ~self.comment) & \
+            ~Literal('\n')
         self.document = Star(self.line)
     
     def _make_graph(self):
@@ -137,10 +143,11 @@ class NQuadsParser(BaseNParser):
     def __init__(self, environment=None):
         super(NQuadsParser, self).__init__(environment)
         self.graph_name = self.uriref
-        self.quad = self.subject & ~Plus(Space()) & self.predicate & ~Plus(Space()) &\
-            self.object_ & ~Plus(Space()) & self.graph_name & ~Star(Space()) &\
-            ~Literal('.') & ~Star(Space()) >= self.make_quad
-        self.line = Star(Space()) & Optional(~self.quad | ~self.comment) & ~Literal('\n')
+        self.quad = self.subject & ~Plus(Space()) & self.predicate \ 
+            & ~Plus(Space()) & self.object_ & ~Plus(Space()) & self.graph_name \ 
+            & ~Star(Space()) & ~Literal('.') & ~Star(Space()) >= self.make_quad
+        self.line = Star(Space()) & Optional(~self.quad | ~self.comment) \ 
+            & ~Literal('\n')
         self.document = Star(self.line)
     
     def _make_graph(self):
