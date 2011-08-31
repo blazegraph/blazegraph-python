@@ -14,11 +14,15 @@ from pymantic.util import quote_normalized_iri
 from pymantic.serializers import nt_escape
 
 
+XSD = Prefix("http://www.w3.org/2001/XMLSchema#")
+
+
 def is_language(lang):
     """Is something a valid XML language?"""
     if isinstance(lang, NamedNode):
         return False
     return True
+
 
 def lang_match(lang1, lang2):
     """Determines if two languages are, in fact, the same language.
@@ -33,6 +37,7 @@ def lang_match(lang1, lang2):
     return lang1[0] == lang2[0] and (lang1[2] == '' or lang2[2] == '' or\
                                      lang1[2] == lang2[2])
 
+
 def parse_curie(curie, namespaces):
     """
     Parses a CURIE within the context of the given namespaces. Will also accept
@@ -43,8 +48,8 @@ def parse_curie(curie, namespaces):
     1) If the CURIE is not of the form [stuff] and the prefix is in the list of
        standard URIs, it is wrapped in a URIRef and returned unchanged.
     2) Otherwise, the CURIE is parsed by the rules of CURIE Syntax 1.0:
-       http://www.w3.org/TR/2007/WD-curie-20070307/ The default namespace is the
-       namespace keyed by the empty string in the namespaces dictionary.
+       http://www.w3.org/TR/2007/WD-curie-20070307/ The default namespace is
+       the namespace keyed by the empty string in the namespaces dictionary.
     3) If the CURIE's namespace cannot be resolved, a ValueError is raised.
     """
     definitely_curie = False
@@ -61,12 +66,15 @@ def parse_curie(curie, namespaces):
     if prefix in namespaces:
         return namespaces[prefix](reference)
     else:
-        raise ValueError('Could not parse CURIE prefix %s from namespaces %s' % (prefix, namespaces))
+        raise ValueError('Could not parse CURIE prefix %s from namespaces %s' %
+                        (prefix, namespaces))
+
 
 def parse_curies(curies, namespaces):
     """Parse multiple CURIEs at once."""
     for curie in curies:
         yield parse_curie(curie, namespaces)
+
 
 def to_curie(uri, namespaces, seperator=":", explicit=False):
     """Converts a URI to a CURIE using the prefixes defined in namespaces. If
@@ -77,8 +85,8 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
     separator - the character to use as the separator between the prefix and
                 the local name.
 
-    explicit - if True and the URI can be abbreviated, wrap the abbreviated form
-               in []s to indicate that it is definitely a CURIE."""
+    explicit - if True and the URI can be abbreviated, wrap the abbreviated
+               form in []s to indicate that it is definitely a CURIE."""
     for prefix, namespace in namespaces.items():
         if uri.startswith(namespace):
             if explicit:
@@ -119,7 +127,8 @@ class Triple(tuple):
 
     def _replace(_self, **kwds):
         'Return a new Triple object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object'), _self))
+        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object'),
+                                 _self))
         if kwds:
             raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result
@@ -132,10 +141,12 @@ class Triple(tuple):
     object = property(itemgetter(2))
 
     def __str__(self):
-        return self.subject.toNT() + ' ' + self.predicate.toNT() + ' ' + self.object.toNT() + ' .\n'
+        return self.subject.toNT() + ' ' + self.predicate.toNT() + ' ' + \
+               self.object.toNT() + ' .\n'
 
     def toString(self):
         return str(self)
+
 
 class Quad(tuple):
     'Quad(subject, predicate, object, graph)'
@@ -160,11 +171,13 @@ class Quad(tuple):
 
     def _asdict(t):
         'Return a new dict which maps field names to their values'
-        return {'subject': t[0], 'predicate': t[1], 'object': t[2], 'graph': t[3],}
+        return {'subject': t[0], 'predicate': t[1], 'object': t[2],
+                'graph': t[3], }
 
     def _replace(_self, **kwds):
         'Return a new Quad object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object', 'graph'), _self))
+        result = _self._make(map(kwds.pop, ('subject', 'predicate', 'object',
+                                            'graph'), _self))
         if kwds:
             raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result
@@ -178,13 +191,17 @@ class Quad(tuple):
     graph = property(itemgetter(3))
 
     def __str__(self):
-        return str(self.subject) + ' ' + str(self.predicate) + ' ' + str(self.object) + ' ' + str(self.graph) + ' .\n'
+        return str(self.subject) + ' ' + str(self.predicate) + ' ' + \
+               str(self.object) + ' ' + str(self.graph) + ' .\n'
+
 
 def q_as_t(quad):
     return Triple(quad.subject, quad.predicate, quad.object)
 
+
 def t_as_q(graph_name, triple):
     return Quad(triple.subject, triple.predicate, triple.object, graph_name)
+
 
 class Literal(tuple):
     """Literal(`value`, `language`, `datatype`)
@@ -207,8 +224,8 @@ class Literal(tuple):
     _fields = ('value', 'language', 'datatype')
 
     types = {
-        int: lambda v: (str(v), NamedNode('http://www.w3.org/2001/XMLSchema#integer')),
-        datetime.datetime: lambda v: (v.isoformat(), NamedNode('http://www.w3.org/2001/XMLSchema#dateTime'))
+        int: lambda v: (str(v), XSD('integer')),
+        datetime.datetime: lambda v: (v.isoformat(), XSD('dateTime'))
     }
 
     def __new__(_cls, value, language=None, datatype=None):
@@ -236,8 +253,9 @@ class Literal(tuple):
         return {'value': t[0], 'language': t[1], 'datatype': t[2]}
 
     def _replace(_self, **kwds):
-        'Return a new Literal object replacing specified fields with new values'
-        result = _self._make(map(kwds.pop, ('value', 'language', 'datatype'), _self))
+        'Return a new Literal object replacing specified fields with new value'
+        result = _self._make(map(kwds.pop, ('value', 'language', 'datatype'),
+                                 _self))
         if kwds:
             raise ValueError('Got unexpected field names: %r' % kwds.keys())
         return result
@@ -284,17 +302,19 @@ class NamedNode(unicode):
 
 
 class Prefix(NamedNode):
-    """Node that when called returns the the argument conctantated with self."""
+    """Node that when called returns the the argument conctantated with
+    self."""
     def __call__(self, name):
         return NamedNode(self + name)
+
 
 class BlankNode(object):
     """A BlankNode is a reference to an unnamed resource (one for which an IRI
     is not known), and may be used in a Triple as a unique reference to that
     unnamed resource.
 
-    BlankNodes are stringified by prepending "_:" to a unique value, for instance
-    _:b142 or _:me, this stringified form is referred to as a
+    BlankNodes are stringified by prepending "_:" to a unique value, for
+    instance _:b142 or _:me, this stringified form is referred to as a
     "blank node identifier"."""
 
     interfaceName = "BlankNode"
@@ -312,9 +332,13 @@ class BlankNode(object):
     def toNT(self):
         return str(self)
 
+
 from collections import defaultdict
+
+
 def Index():
     return defaultdict(Index)
+
 
 class Graph(object):
     """A `Graph` holds a set of one or more `Triple`. Implements the Python
@@ -340,8 +364,8 @@ class Graph(object):
         return self
 
     def add(self, triple):
-        """Adds the specified Triple to the graph. This method returns the graph
-        instance it was called on."""
+        """Adds the specified Triple to the graph. This method returns the
+        graph instance it was called on."""
         self._triples.add(triple)
         self._spo[triple.subject][triple.predicate][triple.object] = triple
         self._pos[triple.predicate][triple.object][triple.subject] = triple
@@ -360,8 +384,8 @@ class Graph(object):
     def match(self, subject=None, predicate=None, object=None):
         """This method returns a new sequence of triples which is comprised of
         all those triples in the current instance which match the given
-        arguments, that is, for each triple in this graph, it is included in the
-        output graph, if:
+        arguments, that is, for each triple in this graph, it is included in
+        the output graph, if:
 
         * calling triple.subject.equals with the specified subject as an
           argument returns true, or the subject argument is null, AND
@@ -389,7 +413,8 @@ class Graph(object):
                         yield triple
                 else:  # s, ?var, ?var
                     for predicate in self._spo[subject]:
-                        for triple in self._spo[subject][predicate].itervalues():
+                        for triple in \
+                          self._spo[subject][predicate].itervalues():
                             yield triple
         elif predicate:  # ?var, p, ???
             if object:  # ?var, p, o
@@ -441,7 +466,7 @@ class Graph(object):
         return iter(self._triples)
 
     def toArray(self):
-        """Returns the set of :py:class:`Triple` within the :py:class:`Graph`"""
+        """Return the set of :py:class:`Triple` within the :py:class:`Graph`"""
         return frozenset(self._triples)
 
 
@@ -482,7 +507,8 @@ class Dataset(object):
                 for match in graph.match(subject, predicate, object):
                     yield t_as_q(graph_uri, match)
 
-    def removeMatches(self, subject=None, predicate=None, object=None, graph=None):
+    def removeMatches(self, subject=None, predicate=None, object=None,
+                      graph=None):
         """This method removes those triples in the current graph which match
         the given arguments."""
         for quad in self.match(subject, predicate, object, graph):
@@ -517,7 +543,9 @@ class Dataset(object):
     def toArray(self):
         return frozenset(self)
 
+
 # RDF Enviroment Interfaces
+
 
 class PrefixMap(dict):
     """A map of prefixes to IRIs, and provides methods to
@@ -580,9 +608,11 @@ class PrefixMap(dict):
         example ":this"."""
         self[''] = iri
 
+
 class TermMap(dict):
-    """A map of simple string terms to IRIs, and provides methods to turn one in
-to the other.
+    """A map of simple string terms to IRIs, and provides methods to turn one
+    in to the other.
+
 Example usage:
 
 >>> terms = TermMap()
@@ -654,6 +684,7 @@ u"http://www.w3.org/2000/01/rdf-schema#label"
                 return term
         return iri
 
+
 class Profile(object):
     """Profiles provide an easy to use context for negotiating between CURIEs,
     Terms and IRIs."""
@@ -662,7 +693,8 @@ class Profile(object):
         self.prefixes = prefixes or PrefixMap()
         self.terms = terms or TermMap()
         if 'rdf' not in self.prefixes:
-            self.prefixes['rdf'] = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+            self.prefixes['rdf'] = \
+                'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
         if 'xsd' not in self.prefixes:
             self.prefixes['xsd'] = 'http://www.w3.org/2001/XMLSchema#'
 
@@ -670,8 +702,8 @@ class Profile(object):
         """Given an Term or CURIE this method will return an IRI, or null if it
         cannot be resolved.
 
-        If toresolve contains a : (colon) then this method returns the result of
-        calling prefixes.resolve(toresolve)
+        If toresolve contains a : (colon) then this method returns the result
+        of calling prefixes.resolve(toresolve)
 
         otherwise this method returns the result of calling
         terms.resolve(toresolve)"""
@@ -713,6 +745,7 @@ class Profile(object):
         self.terms.addAll(profile.terms, override)
         return self
 
+
 class RDFEnvironment(Profile):
     """The RDF Environment is an interface which exposes a high level API for
     working with RDF in a programming environment."""
@@ -725,18 +758,21 @@ class RDFEnvironment(Profile):
         return NamedNode(value)
 
     def createLiteral(self, value, language=None, datatype=None):
-        """Creates a :py:class:`Literal` given a value, an optional language and/or an
+        """Creates a :py:class:`Literal` given a value, an optional language
+        and/or an
         optional datatype."""
         return Literal(value, language, datatype)
 
     def createTriple(self, subject, predicate, object):
-        """Creates a :py:class:`Triple` given a subject, predicate and object. """
+        """Creates a :py:class:`Triple` given a subject, predicate and
+        object."""
         return Triple(subject, predicate, object)
 
-    def createGraph(self, triples = tuple()):
-        """Creates a new :py:class:`Graph`, an optional sequence of :py:class:`Triple` to include within
-        the graph may be specified, this allows easy transition between native
-        sequences and Graphs and is the counterpart for :py:meth:`Graph.toArray`."""
+    def createGraph(self, triples=tuple()):
+        """Creates a new :py:class:`Graph`, an optional sequence of
+        :py:class:`Triple` to include within the graph may be specified, this
+        allows easy transition between native sequences and Graphs and is the
+        counterpart for :py:meth:`Graph.toArray`."""
         g = Graph()
         g.addAll(triples)
         return g
@@ -767,7 +803,7 @@ class RDFEnvironment(Profile):
     def createQuad(self, subject, predicate, object, graph):
         return Quad(subject, predicate, object, graph)
 
-    def createDataset(self, quads = tuple()):
+    def createDataset(self, quads=tuple()):
         ds = Dataset()
         ds.addAll(quads)
         return ds
