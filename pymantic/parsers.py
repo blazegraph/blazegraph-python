@@ -396,7 +396,6 @@ class TurtleParser(BaseLeplParser):
             
             IRIref = PrefixedName | (IRI_REF >> self.create_named_node)
             
-            blank = BlankNode
             
             BooleanLiteral = (Literal('true') | Literal('false')) >> self.boolean_value
             
@@ -410,18 +409,28 @@ class TurtleParser(BaseLeplParser):
                     (DECIMAL >> self.decimal_value) |\
                     (DOUBLE >> self.double_value) | BooleanLiteral
             
+            object = Delayed()
+            
+            predicateObjectList = Delayed()
+            
+            blankNodePropertyList = ~Literal('[') & predicateObjectList & ~Literal(']')
+            
+            collection = ~Literal('(') & object[:] & ~Literal(')')
+            
+            blank = BlankNode | blankNodePropertyList | collection
+            
             subject = IRIref | blank
             
             predicate = IRIref
             
-            object = IRIref | blank | literal
+            object += IRIref | blank | literal
             
             verb = predicate | (~Literal('a') > self.create_rdf_type)
             
             objectList = (object & (~Literal(',') & object)[:]) | object
             
-            predicateObjectList = (verb & objectList &\
-                                   (~Literal(';') & Optional(verb & objectList))[:]) |\
+            predicateObjectList += (verb & objectList &\
+                                    (~Literal(';') & Optional(verb & objectList))[:]) |\
                                 (verb & objectList)
             
             triples = subject & predicateObjectList
