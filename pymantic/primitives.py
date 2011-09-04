@@ -226,8 +226,6 @@ class Literal(tuple):
     }
 
     def __new__(_cls, value, language=None, datatype=None):
-        if datatype == 'http://www.w3.org/2001/XMLSchema#string':
-            datatype = None
         if not isinstance(value, str) and not isinstance(value, unicode):
             value, auto_datatype = _cls.types[type(value)](value)
             if datatype is None:
