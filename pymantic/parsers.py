@@ -9,6 +9,16 @@ from urlparse import urljoin
 from pymantic.util import normalize_iri
 import pymantic.primitives
 
+def discrete_pairs(iterable):
+    "s -> (s0,s1), (s2,s3), (s4, s5), ..."
+    previous = None
+    for v in iterable:
+        if previous is None:
+            previous = v
+        else:
+            yield (previous, v)
+            previous = None
+
 unicode_re = re.compile(r'\\u([0-9A-Za-z]{4})|\\U([0-9A-Za-z]{8})')
 
 def nt_unescape(nt_string):
@@ -413,7 +423,7 @@ class TurtleParser(BaseLeplParser):
             
             predicateObjectList = Delayed()
             
-            blankNodePropertyList = ~Literal('[') & predicateObjectList & ~Literal(']')
+            blankNodePropertyList = ~Literal('[') & predicateObjectList & ~Literal(']') > self.make_blank_node_property_list
             
             collection = ~Literal('(') & object[:] & ~Literal(')')
             
@@ -427,17 +437,17 @@ class TurtleParser(BaseLeplParser):
             
             verb = predicate | (~Literal('a') > self.create_rdf_type)
             
-            objectList = (object & (~Literal(',') & object)[:]) | object
+            objectList = ((object & (~Literal(',') & object)[:]) | object) > self.make_object
             
-            predicateObjectList += (verb & objectList &\
+            predicateObjectList += ((verb & objectList &\
                                     (~Literal(';') & Optional(verb & objectList))[:]) |\
-                                (verb & objectList)
+                                (verb & objectList)) > self.make_object_list
             
-            triples = subject & predicateObjectList
+            triples = (subject & predicateObjectList) > self.make_triples
             
-            directive = ~(prefixID | base)
+            directive = prefixID | base
             
-            statement = (directive | triples) & ~Literal('.')
+            statement = ~((directive | triples) & Literal('.'))
             
             self.turtle_doc = statement[:]
 
@@ -518,6 +528,28 @@ class TurtleParser(BaseLeplParser):
     
     def set_base(self, base_iri):
         self._call_state.base_iri = base_iri
+        
+    def make_object(self, values):
+        return values
+    
+    def make_object_list(self, values):
+        return list(discrete_pairs(values))
+    
+    def make_blank_node_property_list(self, values):
+        subject = self.env.createBlankNode()
+        for predicate, objects in values[0]:
+            for obj in objects:
+                self._call_state.graph.add(self.env.createTriple(
+                    subject, predicate, obj))
+        return subject
+    
+    def make_triples(self, values):
+        subject = values[0]
+        for predicate, objects in values[1]:
+            for obj in objects:
+                self._call_state.graph.add(self.env.createTriple(
+                    subject, predicate, obj))
+        return subject
         
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 
