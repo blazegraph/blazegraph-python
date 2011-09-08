@@ -316,6 +316,10 @@ class Resource(object):
         if objects:
             return True
         return False
+    
+    def __iter__(self):
+        for s, p, o in self.graph.match(self.subject, None, None):
+            yield p, o
 
     @classmethod
     def in_graph(cls, graph):
