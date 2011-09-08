@@ -1,5 +1,6 @@
 __all__ = ['ntriples_parser', 'nquads_parser', 'turtle_parser']
 
+from collections import defaultdict, namedtuple
 from lepl import *
 from lxml import etree
 import re
@@ -7,6 +8,16 @@ from threading import local
 from urlparse import urljoin
 from pymantic.util import normalize_iri
 import pymantic.primitives
+
+def discrete_pairs(iterable):
+    "s -> (s0,s1), (s2,s3), (s4, s5), ..."
+    previous = None
+    for v in iterable:
+        if previous is None:
+            previous = v
+        else:
+            yield (previous, v)
+            previous = None
 
 unicode_re = re.compile(r'\\u([0-9A-Za-z]{4})|\\U([0-9A-Za-z]{8})')
 
@@ -51,7 +62,7 @@ class BaseLeplParser(object):
         return self._call_state.bnodes[values[0]]
 
     def _prepare_parse(self, graph):
-        self._call_state.bnodes = {}
+        self._call_state.bnodes = defaultdict(self.env.createBlankNode)
         self._call_state.graph = graph
 
     def _cleanup_parse(self):
@@ -59,7 +70,7 @@ class BaseLeplParser(object):
         del self._call_state.graph
 
     def _make_graph(self):
-        raise NotImplementedError()
+        return self.env.createGraph()
 
     def parse(self, f, sink = None):
         if sink is None:
@@ -314,6 +325,20 @@ class ClassicTurtleParser(BaseLeplParser):
 
 classic_turtle_parser = ClassicTurtleParser()
 
+TriplesClause = namedtuple('TriplesClause', ['subject', 'predicate_objects'])
+
+PredicateObject = namedtuple('PredicateObject', ['predicate', 'object'])
+
+BindPrefix = namedtuple('BindPrefix', ['prefix', 'iri'])
+
+SetBase = namedtuple('SetBase', ['iri'])
+
+NamedNodeToBe = namedtuple('NamedNodeToBe', ['iri'])
+
+LiteralToBe = namedtuple('LiteralToBe', ['value', 'datatype', 'language'])
+
+PrefixReference = namedtuple('PrefixReference', ['prefix', 'local'])
+
 class TurtleParser(BaseLeplParser):
     RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
     
@@ -340,7 +365,7 @@ class TurtleParser(BaseLeplParser):
         
         WS = Regexp(ur'[\t\n\r ]')
         
-        ANON = Literal('[') & Star(WS) & Literal(']')
+        ANON = ~(Literal('[') & Star(WS) & Literal(']'))
         
         NIL = Literal('(') & Star(WS) & Literal(')')
         
@@ -362,15 +387,85 @@ class TurtleParser(BaseLeplParser):
                                      ( Regexp(ur'[^\"\\]') | ECHAR | UCHAR ) ) &\
                                 Literal('"""')) > self.string_contents
         
-        self.INTEGER = Regexp(ur'[+-]?[0-9]+') >> self.int_value
+        INTEGER = Regexp(ur'[+-]?[0-9]+')
  
-        self.DECIMAL = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+)') >> self.decimal_value
+        DECIMAL = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+)')
         
-        self.DOUBLE = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+|[0-9]+)[eE][+-]?[0-9]+') >> self.double_value
+        DOUBLE = Regexp(ur'[+-]?(?:[0-9]+\.[0-9]+|\.[0-9]+|[0-9]+)[eE][+-]?[0-9]+')
         
+        IRI_REF = (~Literal('<') & (Star(Regexp(ur'[^<>"{}|^`\\\u0000-\u0020]') | UCHAR | ECHAR) > ''.join) & ~Literal('>'))
+ 
+        PNAME_NS = Optional(PN_PREFIX) & Literal(":")
+ 
+        PNAME_LN = PNAME_NS & PN_LOCAL
+ 
+        BLANK_NODE_LABEL = ~Literal("_:") & PN_LOCAL 
+ 
+        LANGTAG = ~Literal("@") & (Literal('base') | Literal('prefix') |\
+                                   Regexp(ur'[a-zA-Z]+(?:-[a-zA-Z0-9]+)*'))
+        
+        intertoken = ~Regexp(ur'[ \t\r\n]+|#[^\r\n]*')[:]
+        with Separator(intertoken):
+            BlankNode = (BLANK_NODE_LABEL >> self.create_blank_node) |\
+                (ANON >> self.create_blank_node)
+            
+            prefixID = (~Literal('@prefix') & PNAME_NS & IRI_REF) > self.bind_prefixed_name
+            
+            base = (~Literal('@base') & IRI_REF) >> self.set_base
+            
+            PrefixedName = (PNAME_LN | PNAME_NS) > self.resolve_prefixed_name
+            
+            IRIref = PrefixedName | (IRI_REF >> self.create_named_node)
+            
+            
+            BooleanLiteral = (Literal('true') | Literal('false')) >> self.boolean_value
+            
+            String = STRING_LITERAL1 | STRING_LITERAL2 | STRING_LITERAL_LONG1 | STRING_LITERAL_LONG2
+            
+            RDFLiteral = ((String & LANGTAG) > self.langtag_string) |\
+                       ((String & ~Literal('^^') & IRIref) > self.typed_string) |\
+                        (String > self.bare_string)
+            
+            literal = RDFLiteral | (INTEGER  >> self.int_value) |\
+                    (DECIMAL >> self.decimal_value) |\
+                    (DOUBLE >> self.double_value) | BooleanLiteral
+            
+            object = Delayed()
+            
+            predicateObjectList = Delayed()
+            
+            blankNodePropertyList = ~Literal('[') & predicateObjectList & ~Literal(']') > self.make_blank_node_property_list
+            
+            collection = (~Literal('(') & object[:] & ~Literal(')')) > self.make_collection
+            
+            blank = BlankNode | blankNodePropertyList | collection
+            
+            subject = IRIref | blank
+            
+            predicate = IRIref
+            
+            object += IRIref | blank | literal
+            
+            verb = predicate | (~Literal('a') > self.create_rdf_type)
+            
+            objectList = ((object & (~Literal(',') & object)[:]) | object) > self.make_object
+            
+            predicateObjectList += ((verb & objectList &\
+                                    (~Literal(';') & Optional(verb & objectList))[:]) |\
+                                (verb & objectList)) > self.make_object_list
+            
+            triples = (subject & predicateObjectList) > self.make_triples
+            
+            directive = prefixID | base
+            
+            statement = (directive | triples) & ~Literal('.')
+            
+            self.turtle_doc = intertoken & statement[:] & intertoken
+            self.turtle_doc.config.clear()
+
     def _prepare_parse(self, graph):
         super(TurtleParser, self)._prepare_parse(graph)
-        self._call_state.base_uri = None
+        self._call_state.base_iri = ''
         self._call_state.prefixes = {}
         self._call_state.current_subject = None
         self._call_state.current_predicate = None
@@ -394,14 +489,154 @@ class TurtleParser(BaseLeplParser):
         return ''.join(string_chars[1:-1])
     
     def int_value(self, value):
-        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:integer'))
+        return LiteralToBe(value, language=None,
+                           datatype=NamedNodeToBe(self.profile.resolve('xsd:integer')))
     
     def decimal_value(self, value):
-        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:decimal'))
+        return LiteralToBe(value, language=None,
+                           datatype=NamedNodeToBe(self.profile.resolve('xsd:decimal')))
     
     def double_value(self, value):
-        return self.env.createLiteral(value, datatype=self.profile.resolve('xsd:double'))
+        return LiteralToBe(value, language=None,
+                           datatype=NamedNodeToBe(self.profile.resolve('xsd:double')))
+    
+    def boolean_value(self, value):
+        return LiteralToBe(value, language=None,
+                           datatype=NamedNodeToBe(self.profile.resolve('xsd:boolean')))
+    
+    def langtag_string(self, values):
+        return LiteralToBe(values[0], language=values[1], datatype=None)
+    
+    def typed_string(self, values):
+        return LiteralToBe(values[0], language=None, datatype=values[1])
+    
+    def bare_string(self, values):
+        return LiteralToBe(values[0], language=None,
+                           datatype=NamedNodeToBe(self.profile.resolve('xsd:string')))
 
+    def create_named_node(self, iri):
+        return NamedNodeToBe(iri)
+    
+    def create_blank_node(self, name=None):
+        if name is None:
+            return self.env.createBlankNode()
+        return self._call_state.bnodes[name]
+    
+    def create_rdf_type(self, values):
+        return self.profile.resolve('rdf:type')
+    
+    def resolve_prefixed_name(self, values):
+        if values[0] == ':':
+            pname = ''
+            local = values[1] if len(values) == 2 else ''
+        elif values[-1] == ':':
+            pname = values[0]
+            local = ''
+        else:
+            pname = values[0]
+            local = values[2]
+        return NamedNodeToBe(PrefixReference(pname, local))
+    
+    def bind_prefixed_name(self, values):
+        iri = values.pop()
+        assert values.pop() == ':'
+        pname = values.pop() if values else ''
+        return BindPrefix(pname, iri)
+    
+    def set_base(self, base_iri):
+        return SetBase(base_iri)
+        
+    def make_object(self, values):
+        return values
+    
+    def make_object_list(self, values):
+        return list(discrete_pairs(values))
+    
+    def make_blank_node_property_list(self, values):
+        subject = self.env.createBlankNode()
+        predicate_objects = []
+        for predicate, objects in values[0]:
+            for obj in objects:
+                predicate_objects.append(PredicateObject(predicate, obj))
+        return TriplesClause(subject, predicate_objects)
+    
+    def make_triples(self, values):
+        subject = values[0]
+        predicate_objects = []
+        for predicate, objects in values[1]:
+            for obj in objects:
+                predicate_objects.append(PredicateObject(predicate, obj))
+        return TriplesClause(subject, predicate_objects)
+    
+    def make_collection(self, values):
+        prev_subject = None
+        for value in values:
+            list_node = self.env.createBlankNode()
+            this_level = TriplesClause(
+                list_node, [PredicateObject(self.profile.resolve('rdf:first'), value)])
+            if prev_subject:
+                prev_subject.predicate_objects.append(
+                    PredicateObject(self.profile.resolve('rdf:rest'),
+                                    this_level))
+            else:
+                top_level = this_level
+            prev_subject = this_level
+        prev_subject.predicate_objects.append(
+            PredicateObject(self.profile.resolve('rdf:rest'),
+                            self.profile.resolve('rdf:nil')))
+        return top_level
+    
+    def _interpret_parse(self, data, sink):
+        for line in data:
+            if isinstance(line, BindPrefix):
+                self._call_state.prefixes[line.prefix] = urljoin(
+                    self._call_state.base_iri, line.iri)
+            elif isinstance(line, SetBase):
+                self._call_state.base_iri = urljoin(
+                    self._call_state.base_iri, line.iri)
+            else:
+                self._interpret_triples_clause(line)
+                
+    def _interpret_triples_clause(self, triples_clause):
+        assert isinstance(triples_clause, TriplesClause)
+        subject = self._resolve_node(triples_clause.subject)
+        for predicate_object in triples_clause.predicate_objects:
+            self._call_state.graph.add(self.env.createTriple(
+                subject, self._resolve_node(predicate_object.predicate),
+                self._resolve_node(predicate_object.object)))
+        return subject
+    
+    def _resolve_node(self, node):
+        if isinstance(node, NamedNodeToBe):
+            if isinstance(node.iri, PrefixReference):
+                return self.env.createNamedNode(
+                    self._call_state.prefixes[node.iri.prefix] + node.iri.local)
+            else:
+                return self.env.createNamedNode(
+                    urljoin(self._call_state.base_iri, node.iri))
+        elif isinstance(node, TriplesClause):
+            return self._interpret_triples_clause(node)
+        elif isinstance(node, LiteralToBe):
+            if node.datatype:
+                return self.env.createLiteral(
+                    node.value, datatype=self._resolve_node(node.datatype))
+            else:
+                return self.env.createLiteral(node.value, language=node.language)
+        else:
+            return node
+    
+    def parse(self, data, sink = None):
+        if sink is None:
+            sink = self._make_graph()
+        self._prepare_parse(sink)
+        self._interpret_parse(self.turtle_doc.parse(data), sink)
+        self._cleanup_parse()
+
+        return sink
+
+    def parse_string(self, string, sink = None):
+        return self.parse(string, sink)
+        
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 
 class RDFXMLParser(object):
