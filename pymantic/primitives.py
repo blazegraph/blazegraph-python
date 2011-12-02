@@ -466,7 +466,18 @@ class Graph(object):
     def toArray(self):
         """Return the set of :py:class:`Triple` within the :py:class:`Graph`"""
         return frozenset(self._triples)
-
+    
+    def subjects(self):
+        """Returns an iterator over subjects in the graph."""
+        return self._spo.iterkeys()
+    
+    def predicates(self):
+        """Returns an iterator over predicates in the graph."""
+        return self._pos.iterkeys()
+    
+    def objects(self):
+        """Returns an iterator over objects in the graph."""
+        return self.__osp.iterkeys()
 
 class Dataset(object):
 
