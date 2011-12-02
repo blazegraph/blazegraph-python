@@ -483,6 +483,12 @@ class Resource(object):
         for t in self.graph.match(self.subject, None, None):
             self.graph.add((target_subject, t.predicate, t.object))
         return self.classify(self.graph, target_subject)
+    
+    def as_(self, target_class):
+        return target_class(self.graph, self.subject)
+    
+
+            
 
 def literalize(graph, value, lang, datatype):
     """Convert either a value or a sequence of values to either a Literal or

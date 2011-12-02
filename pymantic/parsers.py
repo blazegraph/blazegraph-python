@@ -407,7 +407,7 @@ class TurtleParser(BaseLeplParser):
         LANGTAG = ~Literal("@") & (Literal('base') | Literal('prefix') |\
                                    Regexp(ur'[a-zA-Z]+(?:-[a-zA-Z0-9]+)*'))
         
-        intertoken = ~Regexp(ur'[ \t\r\n]+|#[^\r\n]*')[:]
+        intertoken = ~Regexp(ur'[ \t\r\n]+|#[^\r\n]+')[:]
         with Separator(intertoken):
             BlankNode = (BLANK_NODE_LABEL >> self.create_blank_node) |\
                 (ANON >> self.create_blank_node)
@@ -467,7 +467,7 @@ class TurtleParser(BaseLeplParser):
 
     def _prepare_parse(self, graph):
         super(TurtleParser, self)._prepare_parse(graph)
-        self._call_state.base_iri = ''
+        self._call_state.base_iri = self._base
         self._call_state.prefixes = {}
         self._call_state.current_subject = None
         self._call_state.current_predicate = None
@@ -592,10 +592,10 @@ class TurtleParser(BaseLeplParser):
         for line in data:
             if isinstance(line, BindPrefix):
                 self._call_state.prefixes[line.prefix] = urljoin(
-                    self._call_state.base_iri, line.iri)
+                    self._call_state.base_iri, line.iri, allow_fragments=False)
             elif isinstance(line, SetBase):
                 self._call_state.base_iri = urljoin(
-                    self._call_state.base_iri, line.iri)
+                    self._call_state.base_iri, line.iri, allow_fragments=False)
             else:
                 self._interpret_triples_clause(line)
                 
@@ -615,7 +615,8 @@ class TurtleParser(BaseLeplParser):
                     self._call_state.prefixes[node.iri.prefix] + node.iri.local)
             else:
                 return self.env.createNamedNode(
-                    urljoin(self._call_state.base_iri, node.iri))
+                    urljoin(self._call_state.base_iri, node.iri, 
+                            allow_fragments=False))
         elif isinstance(node, TriplesClause):
             return self._interpret_triples_clause(node)
         elif isinstance(node, LiteralToBe):
@@ -627,9 +628,10 @@ class TurtleParser(BaseLeplParser):
         else:
             return node
     
-    def parse(self, data, sink = None):
+    def parse(self, data, sink = None, base = ''):
         if sink is None:
             sink = self._make_graph()
+        self._base = base
         self._prepare_parse(sink)
         self._interpret_parse(self.turtle_doc.parse(data), sink)
         self._cleanup_parse()
@@ -638,7 +640,7 @@ class TurtleParser(BaseLeplParser):
 
     def parse_string(self, string, sink = None):
         return self.parse(string, sink)
-
+    
 turtle_parser = TurtleParser()
         
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
