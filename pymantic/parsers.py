@@ -638,6 +638,8 @@ class TurtleParser(BaseLeplParser):
 
     def parse_string(self, string, sink = None):
         return self.parse(string, sink)
+
+turtle_parser = TurtleParser()
         
 scheme_re = re.compile(r'[a-zA-Z](?:[a-zA-Z0-9]|\+|-|\.)*')
 
