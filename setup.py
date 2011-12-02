@@ -1,15 +1,8 @@
 import sys, os
 
-try:
-    import Cython
-except ImportError:
-    pass
-
 from setuptools import setup
 
 from pymantic import version
-
-import setupinfo
 
 setup(name='pymantic',
       version=version,
@@ -45,7 +38,4 @@ setup(name='pymantic',
       scripts = [
           'pymantic/scripts/named_graph_to_nquads',
       ],
-      #Ignoring unfinished C module
-      #ext_modules = setupinfo.ext_modules(),
-      #**setupinfo.extra_setup_args()
 )
