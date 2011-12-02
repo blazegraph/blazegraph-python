@@ -340,6 +340,9 @@ LiteralToBe = namedtuple('LiteralToBe', ['value', 'datatype', 'language'])
 PrefixReference = namedtuple('PrefixReference', ['prefix', 'local'])
 
 class TurtleParser(BaseLeplParser):
+    """Parser for turtle as described at:
+    http://dvcs.w3.org/hg/rdf/raw-file/e8b1d7283925/rdf-turtle/index.html"""
+
     RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
     
     def __init__(self, environment=None):
@@ -416,7 +419,6 @@ class TurtleParser(BaseLeplParser):
             PrefixedName = (PNAME_LN | PNAME_NS) > self.resolve_prefixed_name
             
             IRIref = PrefixedName | (IRI_REF >> self.create_named_node)
-            
             
             BooleanLiteral = (Literal('true') | Literal('false')) >> self.boolean_value
             
