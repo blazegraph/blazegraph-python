@@ -100,6 +100,6 @@ def test_parse_turtle_example_1():
     ex:homePage <http://purl.org/net/dajobe/>
   ] ."""
     g = Graph()
-    turtle_parser.parse(StringIO(ttl), g)
+    turtle_parser.parse(data=ttl, sink=g)
     assert len(g) == 4
 
