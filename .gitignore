@@ -5,3 +5,4 @@ include
 lib
 share
 docs/_build
+build
