@@ -5,6 +5,13 @@ import random
 def en(s):
     return Literal(s, "en")
 
+def test_to_curie_multi_match():
+    """Test that the longest match for prefix is used"""
+    namespaces = {'short': "aa", 'long': "aaa"}
+    curie = to_curie("aaab", namespaces)
+    print curie
+    assert curie == 'long:b' 
+
 def test_simple_add():
     t = Triple(NamedNode("http://example.com"), NamedNode("http://purl.org/dc/terms/issued"),en("Never!"))
     g = Graph()

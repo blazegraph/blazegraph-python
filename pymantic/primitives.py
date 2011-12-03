@@ -1,6 +1,6 @@
 __all__ = ['Triple', 'Quad', 'q_as_t', 't_as_q', 'Literal', 'NamedNode',
            'Prefix', 'BlankNode', 'Graph', 'Dataset', 'PrefixMap', 'TermMap', 
-           'parse_curie', 'is_language', 'lang_match', 'parse_curie']
+           'parse_curie', 'is_language', 'lang_match', 'to_curie']
 
 import collections
 import datetime
@@ -84,12 +84,16 @@ def to_curie(uri, namespaces, seperator=":", explicit=False):
 
     explicit - if True and the URI can be abbreviated, wrap the abbreviated
                form in []s to indicate that it is definitely a CURIE."""
+    matches = []
     for prefix, namespace in namespaces.items():
         if uri.startswith(namespace):
-            if explicit:
-                return '[' + uri.replace(namespace, prefix + seperator) + ']'
-            else:
-                return uri.replace(namespace, prefix + seperator)
+            matches.append((prefix, namespace))
+    if len(matches) > 0:
+        prefix, namespace = sorted(matches, key=lambda pair: -len(pair[1]))[0]
+        if explicit:
+            return '[' + uri.replace(namespace, prefix + seperator) + ']'
+        else:
+            return uri.replace(namespace, prefix + seperator)
     return uri
 
 
