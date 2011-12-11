@@ -341,7 +341,7 @@ class Resource(object):
         if self['rdfs:label']:
             return self['rdfs:label'].value
         else:
-            return self.subject
+            return str(self.subject)
 
     @classmethod
     def classify(cls, graph, obj):
@@ -412,7 +412,7 @@ class Resource(object):
         dictionary key-style access - IE, __getitem__, __delitem__, __contains__,
         and pretty much everything but __setitem__."""
         predicate, lang, datatype, rdf_class = self._interpret_key(key)
-        log.debug("predicate: %r lang: %r datatype: %r rdf_class: %r", predicate, lang, datatype, rdf_class)
+        # log.debug("predicate: %r lang: %r datatype: %r rdf_class: %r", predicate, lang, datatype, rdf_class)
         if lang is None and datatype is None and rdf_class is None:
             objects = self.objects(predicate)
         elif lang:

@@ -481,7 +481,7 @@ class Graph(object):
     
     def objects(self):
         """Returns an iterator over objects in the graph."""
-        return self.__osp.iterkeys()
+        return self._osp.iterkeys()
 
 class Dataset(object):
 
