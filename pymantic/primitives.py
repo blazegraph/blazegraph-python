@@ -309,7 +309,6 @@ class Prefix(NamedNode):
     
 XSD = Prefix("http://www.w3.org/2001/XMLSchema#")
 
-
 class BlankNode(object):
     """A BlankNode is a reference to an unnamed resource (one for which an IRI
     is not known), and may be used in a Triple as a unique reference to that

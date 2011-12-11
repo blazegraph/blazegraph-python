@@ -37,7 +37,7 @@ class List(rdf.Resource):
             if current.subject != self.resolve('rdf:nil'):
                 current = current.as_(type(self))
 
-class MetaRDFTests(type):
+class MetaRDFTest(type):
     def __new__(mcs, name, bases, dict):
         manifest_name = dict['manifest']
         with open(manifest_name, 'r') as f:
@@ -50,13 +50,13 @@ class MetaRDFTests(type):
             test_name = entry['mf:name'].value.replace('-', '_')
             if not test_name.startswith('test_'):
                 test_name = 'test_' + test_name
-            dict[test_name] = lambda self: self.execute(entry)
+            dict[test_name] = lambda self, entry=entry: self.execute(entry)
             # Doesn't look right in tracebacks, but looks fine in nose output.
             dict[test_name].func_name = test_name
         return type.__new__(mcs, name, bases, dict)
 
 class TurtleTests(unittest.TestCase):
-    __metaclass__ = MetaRDFTests
+    __metaclass__ = MetaRDFTest
 
     base = os.path.join(os.path.dirname(__file__), 'turtle_tests/')
 
@@ -69,3 +69,21 @@ class TurtleTests(unittest.TestCase):
             compare_data = f.read()
         test_graph = turtle_parser.parse(in_data)
         compare_graph = ntriples_parser.parse_string(compare_data)
+
+class BadTurtleTests(unittest.TestCase):
+    __metaclass__ = MetaRDFTest
+
+    base = os.path.join(os.path.dirname(__file__), 'turtle_tests/')
+
+    manifest = os.path.join(base, 'manifest-bad.ttl')
+
+    def execute(self, entry):
+        with open(unicode(entry['mf:action'].as_(Action)['qt:data']), 'r') as f:
+            in_data = f.read()
+            print in_data
+        try:
+            test_graph = turtle_parser.parse(in_data)
+        except:
+            pass
+        else:
+            self.fail('should not have parsed')

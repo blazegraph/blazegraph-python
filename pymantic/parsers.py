@@ -32,7 +32,7 @@ def nt_unescape(nt_string):
     nt_string = nt_string.replace('\\\\', u'\u005C')
     def chr_match(matchobj):
         ordinal = matchobj.group(1) or matchobj.group(2)
-        return unichr(ordinal)
+        return unichr(int(ordinal, 16))
     nt_string = unicode_re.sub(chr_match, nt_string)
     return nt_string
 
@@ -410,7 +410,7 @@ class TurtleParser(BaseLeplParser):
         intertoken = ~Regexp(ur'[ \t\r\n]+|#[^\r\n]+')[:]
         with Separator(intertoken):
             BlankNode = (BLANK_NODE_LABEL >> self.create_blank_node) |\
-                (ANON >> self.create_blank_node)
+                (ANON > self.create_anon_node)
             
             prefixID = (~Literal('@prefix') & PNAME_NS & IRI_REF) > self.bind_prefixed_name
             
@@ -462,9 +462,9 @@ class TurtleParser(BaseLeplParser):
             
             statement = (directive | triples) & ~Literal('.')
             
-            self.turtle_doc = intertoken & statement[:] & intertoken
+            self.turtle_doc = intertoken & statement[:] & intertoken & Eos()
             self.turtle_doc.config.clear()
-
+    
     def _prepare_parse(self, graph):
         super(TurtleParser, self)._prepare_parse(graph)
         self._call_state.base_iri = self._base
@@ -524,6 +524,9 @@ class TurtleParser(BaseLeplParser):
             return self.env.createBlankNode()
         return self._call_state.bnodes[name]
     
+    def create_anon_node(self, anon_tokens):
+        return self.env.createBlankNode()
+    
     def create_rdf_type(self, values):
         return self.profile.resolve('rdf:type')
     
@@ -564,31 +567,21 @@ class TurtleParser(BaseLeplParser):
     
     def make_triples(self, values):
         subject = values[0]
-        predicate_objects = []
-        for predicate, objects in values[1]:
-            for obj in objects:
-                predicate_objects.append(PredicateObject(predicate, obj))
+        predicate_objects = [PredicateObject(predicate, obj) for
+                             predicate, objects in values[1] for obj in objects]
         return TriplesClause(subject, predicate_objects)
     
     def make_collection(self, values):
-        prev_subject = None
-        for value in values:
-            list_node = self.env.createBlankNode()
-            this_level = TriplesClause(
-                list_node, [PredicateObject(self.profile.resolve('rdf:first'), value)])
-            if prev_subject:
-                prev_subject.predicate_objects.append(
-                    PredicateObject(self.profile.resolve('rdf:rest'),
-                                    this_level))
-            else:
-                top_level = this_level
-            prev_subject = this_level
-        prev_subject.predicate_objects.append(
-            PredicateObject(self.profile.resolve('rdf:rest'),
-                            self.profile.resolve('rdf:nil')))
-        return top_level
+        prev_node = TriplesClause(self.profile.resolve('rdf:nil'), [])
+        for value in reversed(values):
+            prev_node = TriplesClause(
+                self.env.createBlankNode(),
+                [PredicateObject(self.profile.resolve('rdf:first'), value),
+                 PredicateObject(self.profile.resolve('rdf:rest'), prev_node)])
+        return prev_node
     
     def _interpret_parse(self, data, sink):
+        print data
         for line in data:
             if isinstance(line, BindPrefix):
                 self._call_state.prefixes[line.prefix] = urljoin(
