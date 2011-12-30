@@ -102,7 +102,8 @@ def serialize_turtle(graph, f, base=None, profile=None,
         from pymantic.primitives import Profile
         profile = Profile()
     for prefix, iri in profile.prefixes.iteritems():
-        f.write('@prefix ' + prefix + ': <' + iri + '>\n')
+        if prefix != 'rdf':
+            f.write('@prefix ' + prefix + ': <' + iri + '>\n')
     
     name_map = OrderedDict()
     output_order = []

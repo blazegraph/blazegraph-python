@@ -110,5 +110,14 @@ class TestTurtleSerializer(TestCase):
         self.profile.setPrefix('dc', self.primitives.NamedNode('http://purl.org/dc/terms/'))
         self.serialize_turtle(graph = graph, f = f, profile = self.profile)
         f.seek(0)
-        print f.read()
-        raise Exception()
+        self.assertEqual(f.read().strip(), """@prefix ex: <http://example.com/>
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+@prefix dc: <http://purl.org/dc/terms/>
+ex:bar dc:title "Bar" ;
+       .
+
+ex:baz dc:subject ex:foo ;
+       .
+
+ex:foo dc:title "Foo" ;
+       .""")
