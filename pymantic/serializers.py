@@ -103,7 +103,7 @@ def serialize_turtle(graph, f, base=None, profile=None,
         profile = Profile()
     for prefix, iri in profile.prefixes.iteritems():
         if prefix != 'rdf':
-            f.write('@prefix ' + prefix + ': <' + iri + '>\n')
+            f.write('@prefix ' + prefix + ': <' + iri + '> .\n')
     
     name_map = OrderedDict()
     output_order = []
