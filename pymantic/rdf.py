@@ -488,6 +488,27 @@ class Resource(object):
         return target_class(self.graph, self.subject)
     
 
+class List(Resource):
+    """Convenience class for dealing with RDF lists.
+
+    Requires considerable use of as_, due to the utter lack of type information
+    on said lists."""
+    scalars = frozenset(('rdf:first', 'rdf:rest'))
+
+    def __iter__(self):
+        """Iterating over lists works differently from normal Resources."""
+        current = self
+        while current.subject != self.resolve('rdf:nil'):
+            yield current['rdf:first']
+            current = current['rdf:rest']
+            if current.subject != self.resolve('rdf:nil'):
+                current = current.as_(type(self))
+    
+    @classmethod
+    def is_list(cls, node, graph):
+        """Determine if a given node is plausibly the subject of a list element."""
+        return bool(list(graph.match(
+            subject = node, predicate = cls.resolve('rdf:rest'))))
             
 
 def literalize(graph, value, lang, datatype):

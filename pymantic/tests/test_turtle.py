@@ -26,17 +26,6 @@ class Action(rdf.Resource):
 
     scalars = frozenset(('qt:data',))
 
-class List(rdf.Resource):
-    scalars = frozenset(('rdf:first', 'rdf:rest'))
-
-    def __iter__(self):
-        current = self
-        while current.subject != self.resolve('rdf:nil'):
-            yield current['rdf:first']
-            current = current['rdf:rest']
-            if current.subject != self.resolve('rdf:nil'):
-                current = current.as_(type(self))
-
 class MetaRDFTest(type):
     def __new__(mcs, name, bases, dict):
         manifest_name = dict['manifest']
@@ -44,7 +33,7 @@ class MetaRDFTest(type):
             manifest_turtle = f.read()
         manifest_graph = turtle_parser.parse(manifest_turtle, base=dict['base'])
         manifest = Manifest(manifest_graph, dict['base'])
-        entries = manifest['mf:entries'].as_(List)
+        entries = manifest['mf:entries'].as_(rdf.List)
         for entry in entries:
             entry = entry.as_(ManifestEntry)
             test_name = entry['mf:name'].value.replace('-', '_')

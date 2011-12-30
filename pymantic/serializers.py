@@ -48,6 +48,7 @@ def escape_prefix_local(prefix):
     return ''.join((prefix,colon,local))
 
 def turtle_string_escape(string):
+    """Escape a string appropriately for output in turtle form."""
     from pymantic.parsers import TurtleParser
 
     for escaped, value in TurtleParser.echar_map.iteritems():
@@ -90,6 +91,10 @@ def turtle_repr(node, profile, name_map, bnode_name_maker):
             name += '^' + turtle_repr(node.datatype, profile, None, None)
     return name
 
+def turtle_sorted_names(l, name_maker):
+    """Sort a list of nodes in a graph by turtle name."""
+    return sorted((name_maker(n), n) for n in l)
+
 def serialize_turtle(graph, f, base=None, profile=None,
                      bnode_name_generator=default_bnode_name_generator):
     """Serialize some turtle from a graph to f, optionally using base IRI base
@@ -109,46 +114,34 @@ def serialize_turtle(graph, f, base=None, profile=None,
     output_order = []
     bnode_name_maker = bnode_name_generator()
 
-    is_list = lambda n, g: list(graph.match(subject = n, predicate = profile.resolve('rdf:rest')))
+    name_maker = lambda n: turtle_repr(n, profile, name_map, bnode_name_maker)
 
-    sorted_names = lambda l: sorted((turtle_repr(n, profile, name_map, bnode_name_maker), n)
-                                    for n in l if not is_list(n, graph))
+    from pymantic.rdf import List
 
-    import pymantic.rdf
+    subjects = [subj for subj in graph.subjects() if not List.is_list(subj, graph)]
 
-    class List(pymantic.rdf.Resource):
-        scalars = frozenset(('rdf:first', 'rdf:rest'))
-
-        def __iter__(self):
-            current = self
-            while current.subject != self.resolve('rdf:nil'):
-                yield current['rdf:first']
-                current = current['rdf:rest']
-                if current.subject != self.resolve('rdf:nil'):
-                    current = current.as_(type(self))
-
-    output_order = sorted_names(graph.subjects())
-    
-    for subject_name, subject in output_order:
+    for subject_name, subject in turtle_sorted_names(subjects, name_maker):
         subj_indent_size = len(subject_name) + 1
         f.write(subject_name + ' ')
-        predicates = sorted_names(set(t.predicate for t in list(graph.match(subject = subject))))
-        for i, (predicate_name, predicate) in enumerate(predicates):
+        predicates = set(t.predicate for t in graph.match(subject = subject))
+        sorted_predicates = turtle_sorted_names(predicates, name_maker)
+        for i, (predicate_name, predicate) in enumerate(sorted_predicates):
             if i != 0:
                 f.write(' ' * subj_indent_size)
             pred_indent_size = subj_indent_size + len(predicate_name) + 1
             f.write(predicate_name + ' ')
-            for j, triple in enumerate(graph.match(subject = subject, predicate = predicate)):
+            for j, triple in enumerate(graph.match(subject = subject,
+                                                   predicate = predicate)):
                 if j != 0:
                     f.write(',\n' + ' ' * pred_indent_size)
-                if is_list(triple.object, graph):
+                if List.is_list(triple.object, graph):
                     f.write('(')
-                    for k, o in enumerate(pymantic.rdf.Resource(graph, triple.object).as_(List)):
+                    for k, o in enumerate(List(graph, triple.object)):
                         if k != 0:
                             f.write(' ')
-                        f.write(turtle_repr(o, profile, name_map, bnode_name_maker))
+                        f.write(name_maker(o))
                     f.write(')')
                 else:
-                    f.write(turtle_repr(triple.object, profile, name_map, bnode_name_maker))
+                    f.write(name_maker(triple.object))
             f.write(' ;\n')
         f.write(' ' * subj_indent_size + '.\n\n')
