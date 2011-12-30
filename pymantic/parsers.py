@@ -582,7 +582,6 @@ class TurtleParser(BaseLeplParser):
         return prev_node
     
     def _interpret_parse(self, data, sink):
-        print data
         for line in data:
             if isinstance(line, BindPrefix):
                 self._call_state.prefixes[line.prefix] = urljoin(

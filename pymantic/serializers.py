@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import re
 import warnings
 
@@ -52,7 +54,7 @@ def turtle_string_escape(string):
         string = string.replace(value, '\\' + escaped)
     return '"' + string + '"'
 
-def turtle_representation(node, profile, name_map, bnode_name_maker):
+def turtle_repr(node, profile, name_map, bnode_name_maker):
     """Turn a node in an RDF graph into its turtle representation."""
     if node.interfaceName == 'NamedNode':
         name = profile.prefixes.shrink(node)
@@ -85,7 +87,7 @@ def turtle_representation(node, profile, name_map, bnode_name_maker):
         else:
             # Unrecognized data-type.
             name = turtle_string_escape(node.value)
-            name += '^' + turtle_representation(node.datatype, profile, None, None)
+            name += '^' + turtle_repr(node.datatype, profile, None, None)
     return name
 
 def serialize_turtle(graph, f, base=None, profile=None,
@@ -99,15 +101,30 @@ def serialize_turtle(graph, f, base=None, profile=None,
     if profile is None:
         from pymantic.primitives import Profile
         profile = Profile()
-    for prefix, iri in profile.prefixes:
+    for prefix, iri in profile.prefixes.iteritems():
         f.write('@prefix ' + prefix + ': <' + iri + '>\n')
     
-    name_map = {}
+    name_map = OrderedDict()
+    output_order = []
     bnode_name_maker = bnode_name_generator()
+
+    sorted_names = lambda l: sorted((turtle_repr(n, profile, name_map, bnode_name_maker), n)
+                                    for n in l)
+
+    output_order = sorted_names(graph.subjects())
     
-    for subject in sorted(graph.subjects()):
-        subject_name = turtle_name(subject, profile, name_map, bnode_name_maker)
-        indent_size = len(subject_name) + 1
-        for triple in sorted(graph.match(subject=name_map[subject]),
-                             key=lambda t: predicate_key(t.predicate)):
-            pass
+    for subject_name, subject in output_order:
+        subj_indent_size = len(subject_name) + 1
+        f.write(subject_name + ' ')
+        predicates = sorted_names(set(t.predicate for t in list(graph.match(subject = subject))))
+        for i, (predicate_name, predicate) in enumerate(predicates):
+            if i != 0:
+                f.write(' ' * subj_indent_size)
+            pred_indent_size = subj_indent_size + len(predicate_name) + 1
+            f.write(predicate_name + ' ')
+            for j, triple in enumerate(graph.match(subject = subject, predicate = predicate)):
+                if j != 0:
+                    f.write(',\n' + ' ' * pred_indent_size)
+                f.write(turtle_repr(triple.object, profile, name_map, bnode_name_maker))
+            f.write(' ;\n')
+        f.write(' ' * subj_indent_size + '.\n\n')
