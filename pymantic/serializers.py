@@ -109,8 +109,23 @@ def serialize_turtle(graph, f, base=None, profile=None,
     output_order = []
     bnode_name_maker = bnode_name_generator()
 
+    is_list = lambda n, g: list(graph.match(subject = n, predicate = profile.resolve('rdf:rest')))
+
     sorted_names = lambda l: sorted((turtle_repr(n, profile, name_map, bnode_name_maker), n)
-                                    for n in l)
+                                    for n in l if not is_list(n, graph))
+
+    import pymantic.rdf
+
+    class List(pymantic.rdf.Resource):
+        scalars = frozenset(('rdf:first', 'rdf:rest'))
+
+        def __iter__(self):
+            current = self
+            while current.subject != self.resolve('rdf:nil'):
+                yield current['rdf:first']
+                current = current['rdf:rest']
+                if current.subject != self.resolve('rdf:nil'):
+                    current = current.as_(type(self))
 
     output_order = sorted_names(graph.subjects())
     
@@ -126,6 +141,14 @@ def serialize_turtle(graph, f, base=None, profile=None,
             for j, triple in enumerate(graph.match(subject = subject, predicate = predicate)):
                 if j != 0:
                     f.write(',\n' + ' ' * pred_indent_size)
-                f.write(turtle_repr(triple.object, profile, name_map, bnode_name_maker))
+                if is_list(triple.object, graph):
+                    f.write('(')
+                    for k, o in enumerate(pymantic.rdf.Resource(graph, triple.object).as_(List)):
+                        if k != 0:
+                            f.write(' ')
+                        f.write(turtle_repr(o, profile, name_map, bnode_name_maker))
+                    f.write(')')
+                else:
+                    f.write(turtle_repr(triple.object, profile, name_map, bnode_name_maker))
             f.write(' ;\n')
         f.write(' ' * subj_indent_size + '.\n\n')

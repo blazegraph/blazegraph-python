@@ -157,3 +157,27 @@ ex:garply dc:author "Baz" ;
           dc:subject ex:thegarply ;
           dc:title "Garply" ;
           .""")
+
+    def testListSerialization(self):
+        from cStringIO import StringIO
+        basic_turtle = """@prefix dc: <http://purl.org/dc/terms/> .
+        @prefix example: <http://example.com/> .
+
+        example:foo dc:author ("Foo" "Bar" "Baz") ."""
+
+        graph = self.turtle_parser.parse(basic_turtle)
+        f = StringIO()
+        self.profile.setPrefix('ex', self.primitives.NamedNode('http://example.com/'))
+        self.profile.setPrefix('dc', self.primitives.NamedNode('http://purl.org/dc/terms/'))
+        self.serialize_turtle(graph = graph, f = f, profile = self.profile)
+        f.seek(0)
+        print f.read()
+        f.seek(0)
+        graph2 = self.turtle_parser.parse(f.read())
+        f.seek(0)
+        self.assertEqual(f.read().strip(), """@prefix ex: <http://example.com/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix dc: <http://purl.org/dc/terms/> .
+ex:foo dc:author ("Foo" "Bar" "Baz") ;
+       .""")
+    
