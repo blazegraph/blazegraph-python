@@ -1,6 +1,6 @@
 __all__ = ['ntriples_parser', 'nquads_parser', 'turtle_parser']
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict, namedtuple, OrderedDict
 from lepl import *
 from lxml import etree
 import re
@@ -344,10 +344,20 @@ class TurtleParser(BaseLeplParser):
     http://dvcs.w3.org/hg/rdf/raw-file/e8b1d7283925/rdf-turtle/index.html"""
 
     RDF_TYPE = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#type'
-    
+
+    echar_map = OrderedDict((
+        ('\\', '\\'),
+        ('t', '\t'),
+        ('b', '\b'),
+        ('n', '\n'),
+        ('r', '\r'),
+        ('f', '\f'),
+        ('"', '"'),
+        ("'", "'"),
+    ))
     def __init__(self, environment=None):
         super(TurtleParser, self).__init__(environment)
-        
+
         UCHAR = (Regexp(ur'\\u([0-9a-fA-F]{4})') |\
                  Regexp(ur'\\U([0-9a-fA-F]{8})')) >> self.decode_uchar
         
@@ -476,16 +486,7 @@ class TurtleParser(BaseLeplParser):
         return unichr(int(uchar_string, 16))
     
     def decode_echar(self, echar_string):
-        return {
-            't': '\t',
-            'b': '\b',
-            'n': '\n',
-            'r': '\r',
-            'f': '\f',
-            '\\': '\\',
-            '"': '"',
-            "'": "'",
-            }[echar_string]
+        return self.echar_map[echar_string]
     
     def string_contents(self, string_chars):
         return ''.join(string_chars[1:-1])
