@@ -121,3 +121,35 @@ ex:baz dc:subject ex:foo ;
 
 ex:foo dc:title "Foo" ;
        .""")
+    
+    def testMultiplePredicates(self):
+        from cStringIO import StringIO
+        basic_turtle = """@prefix dc: <http://purl.org/dc/terms/> .
+        @prefix example: <http://example.com/> .
+
+        example:foo dc:title "Foo" ;
+                    dc:author "Bar" ;
+                    dc:subject example:yesfootoo .
+        
+        example:garply dc:title "Garply" ;
+                    dc:author "Baz" ;
+                    dc:subject example:thegarply ."""
+
+        graph = self.turtle_parser.parse(basic_turtle)
+        f = StringIO()
+        self.profile.setPrefix('ex', self.primitives.NamedNode('http://example.com/'))
+        self.profile.setPrefix('dc', self.primitives.NamedNode('http://purl.org/dc/terms/'))
+        self.serialize_turtle(graph = graph, f = f, profile = self.profile)
+        f.seek(0)
+        self.assertEqual(f.read().strip(), """@prefix ex: <http://example.com/>
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#>
+@prefix dc: <http://purl.org/dc/terms/>
+ex:foo dc:author "Bar" ;
+       dc:subject ex:yesfootoo ;
+       dc:title "Foo" ;
+       .
+
+ex:garply dc:author "Baz" ;
+          dc:subject ex:thegarply ;
+          dc:title "Garply" ;
+          .""")
