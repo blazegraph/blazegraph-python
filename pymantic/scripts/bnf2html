@@ -57,7 +57,7 @@ def html_expr(expr):
     elif op == 'id':
         return "<a href='#grammar-production-{0}'>{0}</a>".format(args)
     elif op == '|':
-        content = " <code>|</code>".join([html_expr(a) for a in args])
+        content = " <code>|</code> ".join([html_expr(a) for a in args])
         return "({})".format(content)
     elif op == ',':
         return " ".join([html_expr(a) for a in args])
@@ -69,6 +69,12 @@ def html_expr(expr):
         return "({})<code class='grammar-plus'>+</code>".format(html_expr(args))
     elif op == '[':
         return "[<code class='grammar-chars'>{}</code>]".format(args)
+    elif op == '-':
+        lh = args[0]
+        rh = args[1]
+        return "{}<code class='grammar-diff'>-</code>{}".format(html_expr(lh), html_expr(rh))
+    elif op == '#':
+        return "<code class='grammar-char-escape'>{}</code>".format(escape(args))
     else:
         return repr(expr)
 
