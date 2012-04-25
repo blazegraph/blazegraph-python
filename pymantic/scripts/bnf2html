@@ -28,11 +28,11 @@ def to_HTML(lines):
     print TABLE_TEMPLATE.render(rows=rows)
 
 
-ROW_TEMPLATE =  Template("""<tr id="grammar-production-${sym}" data-grammar-original="${orig}" ${"class='grammar-token'" if isToken else ""}>
+ROW_TEMPLATE =  Template("""<tr id="grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
     <td>[${num}]<td>
     <td><code>${sym}</code><td>
     <td>::=</td>
-    <td>${expr}</td>
+    <td>${hexpr}</td>
 </tr>""")
 
 TABLE_TEMPLATE = Template("""<table class="grammar">
@@ -47,11 +47,30 @@ TABLE_TEMPLATE = Template("""<table class="grammar">
 def as_HTML(num, sym, expr, isToken, orig):
     css_class = ""
     hexpr = html_expr(expr)
-    return ROW_TEMPLATE.render(num=num, sym=sym, expr=hexpr, isToken=isToken, orig=escape(orig))
+    return ROW_TEMPLATE.render(num=num, sym=sym, expr=escape(expr), hexpr=hexpr, isToken=isToken, orig=escape(orig))
 
 
 def html_expr(expr):
-    return expr
+    op, args = expr
+    if op == '*':
+        return "({})<code class='grammar-star'>*</code>".format(html_expr(args))
+    elif op == 'id':
+        return "<a href='#grammar-production-{0}'>{0}</a>".format(args)
+    elif op == '|':
+        content = " <code>|</code>".join([html_expr(a) for a in args])
+        return "({})".format(content)
+    elif op == ',':
+        return " ".join([html_expr(a) for a in args])
+    elif op == "'":
+        return "'<code class='grammar-literal'>{}</code>'".format(escape(args))
+    elif op == '?':
+        return "({})?".format(html_expr(args))
+    elif op == '+':
+        return "({})<code class='grammar-plus'>+</code>".format(html_expr(args))
+    elif op == '[':
+        return "[<code class='grammar-chars'>{}</code>]".format(args)
+    else:
+        return repr(expr)
 
 def each_rule(lines):
     """turn an iterator over lines into an iterator over rule strings.
