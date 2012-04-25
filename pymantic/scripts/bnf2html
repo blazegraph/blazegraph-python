@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# -*- coding: utf-8 -*-
 """Copyright © 2012 World Wide Web Consortium, (Massachusetts Institute of Technology, European Research Consortium for Informatics and Mathematics, Keio University). All Rights Reserved. This work is distributed under the W3C® Software License [1] in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 [1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
@@ -7,6 +7,8 @@
 
 import re
 import sys
+
+from mako.template import Template
 
 def main():
     to_HTML(file(sys.argv[1]))
@@ -17,27 +19,36 @@ def to_HTML(lines):
     """
     
     token = False
+    rows = []
     for r in each_rule(lines):
         if r == '@terminals': token = True
         else:
             num, sym, expr = rule_parts(r)
-            as_HTML(num, sym, expr, token, r)
+            rows.append(as_HTML(num, sym, expr, token, r))
+    print TABLE_TEMPLATE.render(rows=rows)
 
-from mako.template import Template
 
-TEMPLATE =  Template("""<tr id="grammar-production-${sym}" data-grammar-original="${orig}" ${css_class}>
-    <td>${num}<td>
-    <td>${sym}<td>
+ROW_TEMPLATE =  Template("""<tr id="grammar-production-${sym}" data-grammar-original="${orig}" ${"class='grammar-token'" if isToken else ""}>
+    <td>[${num}]<td>
+    <td><code>${sym}</code><td>
     <td>::=</td>
     <td>${expr}</td>
 </tr>""")
 
+TABLE_TEMPLATE = Template("""<table class="grammar">
+    <tbody>
+        %for row in rows:
+            ${row}
+        %endfor
+    </tbody>
+</table>""")
+
+
 def as_HTML(num, sym, expr, isToken, orig):
     css_class = ""
-    if isToken:
-        css_class = "class='grammar-token'"
     hexpr = html_expr(expr)
-    print TEMPLATE.render(num=num, sym=sym, expr=hexpr, isToken=isToken, orig=orig, css_class=css_class)
+    return ROW_TEMPLATE.render(num=num, sym=sym, expr=hexpr, isToken=isToken, orig=escape(orig))
+
 
 def html_expr(expr):
     return expr
@@ -262,23 +273,9 @@ def token(s):
 
 
 
-def esc(st):
-    r"""escape a string
-
-    >>> esc(r'abc')
-    'abc'
-
-    >>> esc(r'[^"\\]')
-    '[^\\"\\\\\\\\]'
-    """
-    
-    if not ('"' in st or '\\' in st): return st
-    s = ''
-    for c in st:
-        if c == '"' or c == '\\':
-            s += '\\'
-        s += c
-    return s
+def escape(s):
+    escape_map_full = {ord('&'): u'&amp;', ord('<'): u'&lt;', ord('>'): u'&gt;', ord('"'): u'&quot;', ord('\''): u'&#x27;'}
+    return unicode(s).translate(escape_map_full)
     
 if __name__ == '__main__':
     main()
