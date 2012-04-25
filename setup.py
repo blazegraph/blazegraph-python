@@ -37,5 +37,6 @@ setup(name='pymantic',
       """,
       scripts = [
           'pymantic/scripts/named_graph_to_nquads',
+          'pymantic/scripts/bnf2html',
       ],
 )
