@@ -25,13 +25,18 @@ def to_HTML(lines, prefix=None):
     if prefix:
         prefix = prefix + "-"
     token = False
-    rows = []
+    productions = []
+    terminals = []
     for r in each_rule(lines):
         if r == '@terminals': token = True
         else:
             num, sym, expr = rule_parts(r)
-            rows.append(as_HTML(num, sym, expr, token, r))
-    print TABLE_TEMPLATE.render(rows=rows, prefix=prefix)
+            row = as_HTML(num, sym, expr, token, r)
+            if not token:
+                productions.append(row)
+            else:
+                terminals.append(row)
+    print TABLE_TEMPLATE.render(productions=productions, terminals=terminals)
 
 
 ROW_TEMPLATE =  Template("""<tr id="{prefix}grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
@@ -42,8 +47,13 @@ ROW_TEMPLATE =  Template("""<tr id="{prefix}grammar-production-${sym}" data-gram
 </tr>""")
 
 TABLE_TEMPLATE = Template("""<table class="grammar">
-    <tbody>
-        %for row in rows:
+    <tbody class="grammar-productions">
+        %for row in productions:
+            ${row}
+        %endfor
+    </tbody>
+    <tbody class="grammar-terminals">
+        %for row in terminals:
             ${row}
         %endfor
     </tbody>
