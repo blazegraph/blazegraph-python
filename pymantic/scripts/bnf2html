@@ -11,15 +11,19 @@ import argparse
 
 from mako.template import Template
 
+global prefix
+
 def main():
     parser = argparse.ArgumentParser(description='Convert a BNF grammar into an HTML fragment')
     parser.add_argument('bnf', type=argparse.FileType('r'), help="BNF grammar")
     parser.add_argument('-p', '--prefix', help="prefix to prepend to @id of generated elements")
     args = parser.parse_args()
-    to_HTML(file(args.bnf), args.prefix)
+    prefix = args.prefix
+    to_HTML(file(args.bnf))
         
 
-def to_HTML(lines, prefix=None):
+
+def to_HTML(lines):
     """print a HTML version of the lines of a BNF file
     """
     if prefix:
@@ -63,7 +67,7 @@ TABLE_TEMPLATE = Template("""<table class="grammar">
 def as_HTML(num, sym, expr, isToken, orig):
     css_class = ""
     hexpr = html_expr(expr)
-    return ROW_TEMPLATE.render(num=num, sym=sym, expr=escape(expr), hexpr=hexpr, isToken=isToken, orig=escape(orig))
+    return ROW_TEMPLATE.render(num=num, sym=sym, expr=escape(expr), hexpr=hexpr, isToken=isToken, orig=escape(orig), prefix=prefix)
 
 
 def html_expr(expr):
@@ -71,7 +75,7 @@ def html_expr(expr):
     if op == '*':
         return "({})<code class='grammar-star'>*</code>".format(html_expr(args))
     elif op == 'id':
-        return "<a href='#grammar-production-{0}'>{0}</a>".format(args)
+        return "<a href='#{prefix}grammar-production-{0}'>{0}</a>".format(args)
     elif op == '|':
         content = " <code>|</code> ".join([html_expr(a) for a in args])
         return "({})".format(content)
