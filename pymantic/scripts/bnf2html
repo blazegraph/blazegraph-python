@@ -7,17 +7,23 @@
 
 import re
 import sys
+import argparse
 
 from mako.template import Template
 
 def main():
-    to_HTML(file(sys.argv[1]))
+    parser = argparse.ArgumentParser(description='Convert a BNF grammar into an HTML fragment')
+    parser.add_argument('bnf', type=argparse.FileType('r'), help="BNF grammar")
+    parser.add_argument('-p', '--prefix', help="prefix to prepend to @id of generated elements")
+    args = parser.parse_args()
+    to_HTML(file(args.bnf), args.prefix)
         
 
-def to_HTML(lines):
+def to_HTML(lines, prefix=None):
     """print a HTML version of the lines of a BNF file
     """
-    
+    if prefix:
+        prefix = prefix + "-"
     token = False
     rows = []
     for r in each_rule(lines):
@@ -25,10 +31,10 @@ def to_HTML(lines):
         else:
             num, sym, expr = rule_parts(r)
             rows.append(as_HTML(num, sym, expr, token, r))
-    print TABLE_TEMPLATE.render(rows=rows)
+    print TABLE_TEMPLATE.render(rows=rows, prefix=prefix)
 
 
-ROW_TEMPLATE =  Template("""<tr id="grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
+ROW_TEMPLATE =  Template("""<tr id="{prefix}grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
     <td>[${num}]<td>
     <td><code>${sym}</code><td>
     <td>::=</td>
