@@ -8,30 +8,31 @@
 import re
 import sys
 import argparse
+import logging
 
 from mako.template import Template
 
-global prefix
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
+prefix = None
 
 def main():
+    global prefix
     parser = argparse.ArgumentParser(description='Convert a BNF grammar into an HTML fragment')
     parser.add_argument('bnf', type=argparse.FileType('r'), help="BNF grammar")
     parser.add_argument('-p', '--prefix', help="prefix to prepend to @id of generated elements")
     args = parser.parse_args()
     prefix = args.prefix
-    to_HTML(file(args.bnf))
-        
-
+    to_HTML(args.bnf)
 
 def to_HTML(lines):
     """print a HTML version of the lines of a BNF file
     """
-    if prefix:
-        prefix = prefix + "-"
     token = False
     productions = []
     terminals = []
     for r in each_rule(lines):
+        logging.debug(r)
         if r == '@terminals': token = True
         else:
             num, sym, expr = rule_parts(r)
@@ -40,17 +41,17 @@ def to_HTML(lines):
                 productions.append(row)
             else:
                 terminals.append(row)
-    print TABLE_TEMPLATE.render(productions=productions, terminals=terminals)
+    print TABLE_TEMPLATE.render(productions=productions, terminals=terminals, prefix=prefix)
 
 
-ROW_TEMPLATE =  Template("""<tr id="{prefix}grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
+ROW_TEMPLATE =  Template("""<tr id="${prefix + "-" if prefix else ''}grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
     <td>[${num}]<td>
     <td><code>${sym}</code><td>
     <td>::=</td>
     <td>${hexpr}</td>
 </tr>""")
 
-TABLE_TEMPLATE = Template("""<table class="grammar">
+TABLE_TEMPLATE = Template("""<table ${'id="' + prefix + '"' if prefix else ''} class="grammar">
     <tbody class="grammar-productions">
         %for row in productions:
             ${row}
@@ -71,11 +72,12 @@ def as_HTML(num, sym, expr, isToken, orig):
 
 
 def html_expr(expr):
+    global prefix
     op, args = expr
     if op == '*':
         return "({})<code class='grammar-star'>*</code>".format(html_expr(args))
     elif op == 'id':
-        return "<a href='#{prefix}grammar-production-{0}'>{0}</a>".format(args)
+        return "<a href='#{1}grammar-production-{0}'>{0}</a>".format(args, prefix + '-' if prefix else '')
     elif op == '|':
         content = " <code>|</code> ".join([html_expr(a) for a in args])
         return "({})".format(content)
