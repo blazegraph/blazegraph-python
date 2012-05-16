@@ -71,7 +71,7 @@ def as_HTML(num, sym, expr, isToken, orig):
     return ROW_TEMPLATE.render(num=num, sym=sym, expr=escape(expr), hexpr=hexpr, isToken=isToken, orig=escape(orig), prefix=prefix)
 
 
-def html_expr(expr):
+def html_expr(expr, nested=False):
     global prefix
     op, args = expr
     if op == '*':
@@ -79,12 +79,19 @@ def html_expr(expr):
     elif op == 'id':
         return "<a href='#{1}grammar-production-{0}'>{0}</a>".format(args, prefix + '-' if prefix else '')
     elif op == '|':
-        content = " <code>|</code> ".join([html_expr(a) for a in args])
-        return "({})".format(content)
+        content = " <code>|</code> ".join([html_expr(a, nested=True) for a in args])
+        return content
     elif op == ',':
-        return " ".join([html_expr(a) for a in args])
+        if nested:
+            content = " ".join([html_expr(a) for a in args])
+            return "({})".format(content)
+        else:
+            return " ".join([html_expr(a) for a in args])
     elif op == "'":
-        return "'<code class='grammar-literal'>{}</code>'".format(escape(args))
+        if "'" in args:
+            return '"<code class="grammar-literal">{}</code>"'.format(escape(args))
+        else:
+            return "'<code class='grammar-literal'>{}</code>'".format(escape(args))
     elif op == '?':
         return "({})?".format(html_expr(args))
     elif op == '+':
