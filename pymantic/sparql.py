@@ -36,7 +36,7 @@ class SPARQLServer(object):
         'application/sparql-results+xml',
     ]
 
-    def query(self, sparql, output='json'):
+    def query(self, sparql, output='json', default_graph=[], named_graph=[]):
         """Executes a SPARQL query. The return type varies based on what the
         SPARQL store responds with:
 
@@ -49,16 +49,25 @@ class SPARQLServer(object):
         http = httplib2.Http()
 
         log.debug("Querying: %s with: %r", self.query_url, sparql)
+        params_dict = {'query': sparql, 'output': output}
+        if default_graph:
+            for g in default_graph:
+                print g
+                print str(g)
+            params_dict['default-graph-uri'] = default_graph
+        if named_graph:
+            params_dict['named-graph-uri'] = named_graph
         if self.post_queries:
             response, content = http.request(
                 uri=self.query_url, method='POST',
-                body=urllib.urlencode({'query': sparql, 'output':output }),
+                body=urllib.urlencode(params_dict, doseq=True),
                 headers={
                     "Content-Type": "application/x-www-form-urlencoded",
                     "Accept": ','.join(self.acceptable_sparql_responses),
                 })
         else:
-            params = urllib.urlencode({'query': sparql, 'output':output })
+            params = urllib.urlencode(params_dict, doseq=True)
+            print params
             response, content = http.request(
                 uri=self.query_url + '?' + params, method='GET',
                 headers={
