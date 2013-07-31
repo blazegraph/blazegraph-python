@@ -23,12 +23,149 @@ class UnknownSPARQLReturnTypeException(Exception):
     """Raised when the SPARQL store provides a response with an unrecognized content-type."""
     pass
 
+class _SelectOrUpdate(object):
+    """A server that can run SPARQL queries."""
+
+    def __init__(self, server, sparql, default_graph=None, named_graph=None, *args, **kwargs):
+        self.server = server
+        self.sparql = sparql
+        self.default_graphs=default_graph
+        self.named_graphs=named_graph
+        self.headers = dict()
+        self.params = dict()
+
+# abstract methods, see Select for the idea
+    def default_graph_uri(self):
+        pass
+
+    def named_graph_uri(self):
+        pass
+
+    def query_or_update(self):
+        pass
+
+    def directContentType(self):
+        pass
+
+    def postQueries(self):
+        pass
+
+
+    def execute(self):
+        http = httplib2.Http()
+
+        log.debug("Querying: %s with: %r", self.server.query_url, self.sparql)
+
+        if self.default_graphs:
+            self.params[self.default_graph_uri()] = self.default_graphs
+        if self.named_graphs:
+            self.params[self.named_graph_uri()] = self.named_graphs
+
+        if self.server.post_directly:
+            self.headers["Content-Type"] = self.directContentType()
+            uri_params = urllib.urlencode(self.params, doseq=True)
+            body = self.sparql
+            method='POST'
+        elif self.postQueries():
+            self.headers["Content-Type"] = "application/x-www-form-urlencoded"
+            uri_params = None
+            self.params[self.query_or_update()] = self.sparql
+            body = urllib.urlencode(self.params, doseq=True)
+            method='POST'
+        else:
+            # select only
+            self.params[self.query_or_update()] = self.sparql
+            uri_params = urllib.urlencode(self.params, doseq=True)
+            body = None
+            method='GET'
+
+        uri = self.server.query_url
+        if uri_params:
+            uri = uri + "?" + uri_params
+        response, content = http.request(uri=uri, method=method, headers=self.headers, body=body)
+        if response['status'] == '204':
+            return True
+        if response['status'] != '200':
+            raise SPARQLQueryException('%s: %s' % (response, content))
+        return response, content
+
+class _Select(_SelectOrUpdate):
+
+    acceptable_xml_responses = [
+        'application/rdf+xml',
+        'application/sparql-results+xml',
+    ]
+
+    acceptable_json_responses = [
+        'application/sparql-results+json',
+        'text/turtle',
+    ]
+
+    def __init__(self, server, query, output='json', *args,**kwargs):
+        super(_Select,self).__init__(server, query, *args,**kwargs)
+        if output=='xml':
+            self.headers['Accept'] = ','.join(self.acceptable_xml_responses)
+        else:
+            self.headers['Accept'] = ','.join(self.acceptable_json_responses)
+
+    def default_graph_uri(self):
+        return 'default-graph-uri'
+
+    def named_graph_uri(self):
+        return 'named-graph-uri'
+
+    def query_or_update(self):
+        return 'query'
+
+    def directContentType(self):
+        return 'application/sparql-query'
+
+    def postQueries(self):
+        return self.server.post_queries
+
+    def execute(self):
+        response, content = super(_Select,self).execute()
+        format = None
+        if response['content-type'].startswith('application/rdf+xml'):
+            format = 'xml'
+        elif response['content-type'].startswith('text/turtle'):
+            format = 'turtle'
+
+        if format:
+            graph = rdflib.ConjunctiveGraph()
+            graph.parse(StringIO(content), self.query_url, format=format)
+            return graph
+        elif response['content-type'].startswith('application/sparql-results+json'):
+            return simplejson.loads(content)
+        elif response['content-type'].startswith('application/sparql-results+xml'):
+            return objectify.parse(StringIO(content))
+        else:
+            raise UnknownSPARQLReturnTypeException('Got content of type: %s' %
+                                                   response['content-type'])
+
+class _Update(_SelectOrUpdate):
+    def default_graph_uri(self):
+        return 'using-graph-uri'
+
+    def named_graph_uri(self):
+        return 'using-named-graph-uri'
+
+    def query_or_update(self):
+        return 'update'
+
+    def directContentType(self):
+        return 'application/sparql-update'
+
+    def postQueries(self):
+        return True
+
 class SPARQLServer(object):
     """A server that can run SPARQL queries."""
 
-    def __init__(self, query_url, post_queries = True):
+    def __init__(self, query_url, post_queries=False, post_directly=False):
         self.query_url = query_url
         self.post_queries = post_queries
+        self.post_directly = post_directly
 
     acceptable_sparql_responses = [
         'application/sparql-results+json',
@@ -36,7 +173,7 @@ class SPARQLServer(object):
         'application/sparql-results+xml',
     ]
 
-    def query(self, sparql, output='json', default_graph=[], named_graph=[]):
+    def query(self, sparql, *args, **kwargs):
         """Executes a SPARQL query. The return type varies based on what the
         SPARQL store responds with:
 
@@ -46,48 +183,13 @@ class SPARQLServer(object):
 
         :param sparql: The SPARQL to execute.
         :returns: The results of the query from the SPARQL store."""
-        http = httplib2.Http()
+        return _Select(self, sparql, *args, **kwargs).execute()
 
-        log.debug("Querying: %s with: %r", self.query_url, sparql)
-        params_dict = {'query': sparql, 'output': output}
-        if default_graph:
-            for g in default_graph:
-                print g
-                print str(g)
-            params_dict['default-graph-uri'] = default_graph
-        if named_graph:
-            params_dict['named-graph-uri'] = named_graph
-        if self.post_queries:
-            response, content = http.request(
-                uri=self.query_url, method='POST',
-                body=urllib.urlencode(params_dict, doseq=True),
-                headers={
-                    "Content-Type": "application/x-www-form-urlencoded",
-                    "Accept": ','.join(self.acceptable_sparql_responses),
-                })
-        else:
-            params = urllib.urlencode(params_dict, doseq=True)
-            print params
-            response, content = http.request(
-                uri=self.query_url + '?' + params, method='GET',
-                headers={
-                    "Accept": ','.join(self.acceptable_sparql_responses),
-            })
-        if response['status'] == '204':
-            return True
-        if response['status'] != '200':
-            raise SPARQLQueryException('%s: %s' % (response, content))
-        if response['content-type'].startswith('application/rdf+xml'):
-            graph = rdflib.ConjunctiveGraph()
-            graph.parse(StringIO(content), self.query_url)
-            return graph
-        elif response['content-type'].startswith('application/sparql-results+json'):
-            return simplejson.loads(content)
-        elif response['content-type'].startswith('application/sparql-results+xml'):
-            return objectify.parse(StringIO(content))
-        else:
-            raise UnknownSPARQLReturnTypeException('Got content of type: %s' %\
-                                                   response['content-type'])
+    def update(self, sparql, **kwargs):
+        """Executes a SPARQL update.
+
+        :param sparql: The SPARQL Update request to execute."""
+        return _Update(self, sparql, **kwargs).execute()
 
 class UpdateableGraphStore(SPARQLServer):
     """SPARQL server class that is capable of interacting with SPARQL 1.1
