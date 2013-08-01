@@ -86,7 +86,7 @@ class _SelectOrUpdate(object):
         if response['status'] == '204':
             return True
         if response['status'] != '200':
-            raise SPARQLQueryException('%s: %s' % (response, content))
+            raise SPARQLQueryException('%s: %s\nQuery: %s' % (response, content, self.sparql))
         return response, content
 
 class _Select(_SelectOrUpdate):
