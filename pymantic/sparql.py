@@ -137,7 +137,7 @@ class _Select(_SelectOrUpdate):
         elif response['content-type'].startswith('application/sparql-results+json'):
             # See http://stackoverflow.com/a/19366580/2276263
             # for justification of unicode() below
-            return simplejson.loads(unicode(content))
+            return simplejson.loads(unicode(content, "utf-8"))
         elif response['content-type'].startswith('application/sparql-results+xml'):
             return objectify.parse(StringIO(content))
         else:
