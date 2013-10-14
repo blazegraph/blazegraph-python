@@ -50,7 +50,6 @@ class _SelectOrUpdate(object):
     def postQueries(self):
         pass
 
-
     def execute(self):
         http = httplib2.Http()
 
@@ -136,7 +135,9 @@ class _Select(_SelectOrUpdate):
             graph.parse(StringIO(content), self.query_url, format=format)
             return graph
         elif response['content-type'].startswith('application/sparql-results+json'):
-            return simplejson.loads(content)
+            # See http://stackoverflow.com/a/19366580/2276263
+            # for justification of unicode() below
+            return simplejson.loads(unicode(content))
         elif response['content-type'].startswith('application/sparql-results+xml'):
             return objectify.parse(StringIO(content))
         else:
