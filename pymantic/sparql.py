@@ -55,25 +55,27 @@ class _SelectOrUpdate(object):
 
         log.debug("Querying: %s with: %r", self.server.query_url, self.sparql)
 
+        sparql = self.sparql.encode('utf-8')
+
         if self.default_graphs:
             self.params[self.default_graph_uri()] = self.default_graphs
         if self.named_graphs:
             self.params[self.named_graph_uri()] = self.named_graphs
 
         if self.server.post_directly:
-            self.headers["Content-Type"] = self.directContentType()
+            self.headers["Content-Type"] = self.directContentType() + "; charset=utf-8"
             uri_params = urllib.urlencode(self.params, doseq=True)
-            body = self.sparql
+            body = sparql
             method='POST'
         elif self.postQueries():
             self.headers["Content-Type"] = "application/x-www-form-urlencoded"
             uri_params = None
-            self.params[self.query_or_update()] = self.sparql
+            self.params[self.query_or_update()] = sparql
             body = urllib.urlencode(self.params, doseq=True)
             method='POST'
         else:
             # select only
-            self.params[self.query_or_update()] = self.sparql
+            self.params[self.query_or_update()] = sparql
             uri_params = urllib.urlencode(self.params, doseq=True)
             body = None
             method='GET'
