@@ -1,0 +1,28 @@
+#!/usr/bin/env python
+import optparse
+import os.path
+import pymantic
+import rdflib
+import urllib
+
+if __name__ == '__main__':
+    usage = """usage: %prog [options] filename1 filename2 ...
+Reads in RDF graphs and reserializes them as nquads to stdout, using the basename of each filename as the graph name."""
+    parser = optparse.OptionParser(usage = usage)
+    
+    parser.add_option('-f', '--input-format', dest='input_format', default='application/rdf+xml',
+                      help='The content type of the input graphs. Default: application/rdf+xml')
+    parser.add_option('-p', '--plain-filenames', dest='unquote',
+                      default=True, action='store_false',
+                      help="Are the filenames graph names, or do they need to be urllib.unquote'd?")
+    
+    (options, args) = parser.parse_args()
+
+    for filename in args:
+        graph_name = urllib.unquote(os.path.basename(filename)) if options.unquote\
+                   else os.path.basename(filename)
+        graph = rdflib.ConjunctiveGraph()
+        rdf_in = open(filename, 'rb')
+        graph.parse(rdf_in, publicID=graph_name,
+                    format=pymantic.content_type_to_rdflib_format[options.input_format])
+        print graph.serialize(format = 'nq')

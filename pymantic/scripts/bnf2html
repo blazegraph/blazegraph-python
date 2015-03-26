@@ -1,0 +1,335 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""Copyright © 2012 World Wide Web Consortium, (Massachusetts Institute of Technology, European Research Consortium for Informatics and Mathematics, Keio University). All Rights Reserved. This work is distributed under the W3C® Software License [1] in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+[1] http://www.w3.org/Consortium/Legal/2002/copyright-software-20021231
+"""
+
+import re
+import sys
+import argparse
+import logging
+
+from mako.template import Template
+
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
+
+prefix = None
+
+def main():
+    global prefix
+    parser = argparse.ArgumentParser(description='Convert a BNF grammar into an HTML fragment')
+    parser.add_argument('bnf', type=argparse.FileType('r'), help="BNF grammar")
+    parser.add_argument('-p', '--prefix', help="prefix to prepend to @id of generated elements")
+    args = parser.parse_args()
+    prefix = args.prefix
+    to_HTML(args.bnf)
+
+def to_HTML(lines):
+    """print a HTML version of the lines of a BNF file
+    """
+    token = False
+    productions = []
+    terminals = []
+    for r in each_rule(lines):
+        logging.debug(r)
+        if r == '@terminals': token = True
+        else:
+            num, sym, expr = rule_parts(r)
+            row = as_HTML(num, sym, expr, token, r)
+            if not token:
+                productions.append(row)
+            else:
+                terminals.append(row)
+    print TABLE_TEMPLATE.render(productions=productions, terminals=terminals, prefix=prefix)
+
+
+ROW_TEMPLATE =  Template("""<tr id="${prefix + "-" if prefix else ''}grammar-production-${sym}" data-grammar-original="${orig}" data-grammar-expression="${expr}" ${"class='grammar-token'" if isToken else ""}>
+    <td>[${num}]<td>
+    <td><code>${sym}</code><td>
+    <td>::=</td>
+    <td>${hexpr}</td>
+</tr>""")
+
+TABLE_TEMPLATE = Template("""<table ${'id="' + prefix + '"' if prefix else ''} class="grammar">
+    <tbody class="grammar-productions">
+        %for row in productions:
+            ${row}
+        %endfor
+    </tbody>
+    <tbody class="grammar-terminals">
+        %for row in terminals:
+            ${row}
+        %endfor
+    </tbody>
+</table>""")
+
+
+def as_HTML(num, sym, expr, isToken, orig):
+    css_class = ""
+    hexpr = html_expr(expr)
+    return ROW_TEMPLATE.render(num=num, sym=sym, expr=escape(expr), hexpr=hexpr, isToken=isToken, orig=escape(orig), prefix=prefix)
+
+
+def html_expr(expr, nested=False):
+    global prefix
+    op, args = expr
+    if op == '*':
+        return "({})<code class='grammar-star'>*</code>".format(html_expr(args))
+    elif op == 'id':
+        return "<a href='#{1}grammar-production-{0}'>{0}</a>".format(args, prefix + '-' if prefix else '')
+    elif op == '|':
+        content = " <code>|</code> ".join([html_expr(a, nested=True) for a in args])
+        return content
+    elif op == ',':
+        if nested:
+            content = " ".join([html_expr(a) for a in args])
+            return "({})".format(content)
+        else:
+            return " ".join([html_expr(a) for a in args])
+    elif op == "'":
+        if "'" in args:
+            return '"<code class="grammar-literal">{}</code>"'.format(escape(args))
+        else:
+            return "'<code class='grammar-literal'>{}</code>'".format(escape(args))
+    elif op == '?':
+        return "({})?".format(html_expr(args))
+    elif op == '+':
+        return "({})<code class='grammar-plus'>+</code>".format(html_expr(args))
+    elif op == '[':
+        return "[<code class='grammar-chars'>{}</code>]".format(args)
+    elif op == '-':
+        lh = args[0]
+        rh = args[1]
+        return "{}<code class='grammar-diff'>-</code>{}".format(html_expr(lh), html_expr(rh))
+    elif op == '#':
+        return "<code class='grammar-char-escape'>{}</code>".format(escape(args))
+    else:
+        return repr(expr)
+
+def each_rule(lines):
+    """turn an iterator over lines into an iterator over rule strings.
+
+    a line that starts with [ or @ starts a new rule
+    """
+    
+    r = ''
+    for l in lines:
+        if l.startswith("/*"): continue
+        if l.startswith('[') or l.startswith('@'):
+            if r: yield r
+            r = l.strip()
+        else:
+            r += l.strip()
+    if r: yield r
+
+
+def rule_parts(r):
+    """parse a rule into a rule number, a symbol, and an expression
+
+    >>> ruleParts("[2]     Prolog    ::=           BaseDecl? PrefixDecl*")
+    ('2', 'Prolog', (',', [('?', ('id', 'BaseDecl')), ('*', ('id', 'PrefixDecl'))]))
+
+    """
+    
+    assert r.find(']') > 0
+    num, r = r.split(']', 1)
+    num = num[1:]
+    rhs, r = r.split('::=', 1)
+    rhs = rhs.strip()
+    return (num, rhs, ebnf(r)[0])
+
+
+def ebnf(s):
+    """parse a string into an expression tree and a remaining string
+
+    >>> ebnf("a b c")
+    ((',', [('id', 'a'), ('id', 'b'), ('id', 'c')]), '')
+
+    >>> ebnf("a? b+ c*")
+    ((',', [('?', ('id', 'a')), ('+', ('id', 'b')), ('*', ('id', 'c'))]), '')
+
+    >>> ebnf(" | x xlist")
+    (('|', [(',', []), (',', [('id', 'x'), ('id', 'xlist')])]), '')
+
+    >>> ebnf("a | (b - c)")
+    (('|', [('id', 'a'), ('-', [('id', 'b'), ('id', 'c')])]), '')
+
+    >>> ebnf("a b | c d")
+    (('|', [(',', [('id', 'a'), ('id', 'b')]), (',', [('id', 'c'), ('id', 'd')])]), '')
+    
+    >>> ebnf("a | b | c")
+    (('|', [('id', 'a'), ('id', 'b'), ('id', 'c')]), '')
+    
+    >>> ebnf("a) b c")
+    (('id', 'a'), ' b c')
+    
+    >>> ebnf("BaseDecl? PrefixDecl*")
+    ((',', [('?', ('id', 'BaseDecl')), ('*', ('id', 'PrefixDecl'))]), '')
+
+    """
+
+    e, s = alt(s)
+    if s:
+        t, ss = token(s)
+        if t[0] == ')':
+            return e, ss
+    return e, s
+
+
+def alt(s):
+    """parse alt
+
+    >>> alt("a | b | c")
+    (('|', [('id', 'a'), ('id', 'b'), ('id', 'c')]), '')
+
+    """
+
+    args = []
+    while s:
+        e, s = seq(s)
+        if not e:
+            if args: break
+            e = (',', []) # empty sequence
+        args.append(e)
+        if s:
+            t, ss = token(s)
+            if not t[0] == '|': break
+            s = ss
+    if len(args) > 1:
+        return ('|', args), s
+    else:
+        return e, s
+
+
+def seq(s):
+    """parse seq
+
+    >>> seq("a b c")
+    ((',', [('id', 'a'), ('id', 'b'), ('id', 'c')]), '')
+
+    >>> seq("a b? c")
+    ((',', [('id', 'a'), ('?', ('id', 'b')), ('id', 'c')]), '')
+
+    """
+
+    args = []
+    while s:
+        e, ss = diff(s)
+        if e:
+            args.append(e)
+            s = ss
+        else: break
+    if len(args) > 1:
+        return (',', args), s
+    elif len(args) == 1:
+        return args[0], s
+    else:
+        return None, s
+
+
+def diff(s):
+    """parse diff
+
+    >>> diff("a - b")
+    (('-', [('id', 'a'), ('id', 'b')]), '')
+
+    """
+
+    e1, s = postfix(s)
+    if e1:
+        if s:
+            t, ss = token(s)
+            if t[0] == '-':
+                s = ss
+                e2, s = primary(s)
+                if e2:
+                    return ('-', [e1, e2]), s
+                else:
+                    raise SyntaxError
+            
+    return e1, s
+
+
+def postfix(s):
+    """parse postfix
+
+    >>> postfix("a b c")
+    (('id', 'a'), ' b c')
+
+    >>> postfix("a? b c")
+    (('?', ('id', 'a')), ' b c')
+    """
+
+    e, s = primary(s)
+    if not e: return None, s
+
+    if s:
+        t, ss = token(s)
+        if t[0] in '?*+':
+            return (t[0], e), ss
+        
+    return e, s
+
+def primary(s):
+    """parse primary
+
+    >>> primary("a b c")
+    (('id', 'a'), ' b c')
+    """
+
+    t, s = token(s)
+    if t[0] == 'id' or t[0] == "'" or t[0] == '[' or t[0] == '#':
+        return t, s
+
+    elif t[0] is '(':
+        e, s = ebnf(s)
+        return e, s
+
+    else:
+        return None, s
+
+
+def token(s):
+    """parse one token; return the token and the remaining string
+
+    A token is represented as a tuple whose 1st item gives the type;
+    some types have additional info in the tuple.
+    
+    >>> token("'abc' def")
+    (("'", 'abc'), ' def')
+    """
+
+    s = s.strip()
+    if s.startswith("'"):
+        l, s = s[1:].split("'", 1)
+        return ("'", l), s
+    elif s.startswith('"'):
+        l, s = s[1:].split('"', 1)
+        return ("'", l), s
+    elif s.startswith("["):
+        l, s = s[1:].split("]", 1)
+        return ("[", l), s
+    elif s.startswith("#"):
+        i = re.match("\w+", s[1:]).end(0) + 1
+        return (('#', s[:i]), s[i:])
+    elif s[0].isalpha():
+        i = re.match("\w+", s).end(0)
+        return (('id', s[:i]), s[i:])
+    elif s.startswith("@"):
+        i = re.match("\w+", s[1:]).end(0) + 1
+        return (('@', s[1:i]), s[i:])
+    elif s[0] in '(?)*+|-':
+        return ((s[0],) , s[1:])
+    else:
+        raise ValueError, "unrecognized token: %s" % s
+
+
+
+
+def escape(s):
+    escape_map_full = {ord('&'): u'&amp;', ord('<'): u'&lt;', ord('>'): u'&gt;', ord('"'): u'&quot;', ord('\''): u'&#x27;'}
+    return unicode(s).translate(escape_map_full)
+    
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,15 @@
+syntax: glob
+*.pyc
+*~
+*.wpu
+build
+_build
+include
+data
+dist
+lib
+bin
+*.swp
+*.db
+.DS_Store
+pymantic.egg-info
