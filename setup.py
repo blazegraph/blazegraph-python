@@ -30,7 +30,8 @@ setup(name='pymantic',
           'mock_http',
           'pytz',
           'simplejson',
-          'lepl'
+          'lepl',
+          'rdflib'
           ],
       entry_points="""
       # -*- Entry points: -*-
