@@ -102,12 +102,15 @@ class _Select(_SelectOrUpdate):
         'text/turtle',
     ]
 
-    def __init__(self, server, query, output='json', *args,**kwargs):
+    def __init__(self, server, query, timeout, output='json', *args,**kwargs):
         super(_Select,self).__init__(server, query, *args,**kwargs)
         if output=='xml':
             self.headers['Accept'] = ','.join(self.acceptable_xml_responses)
         else:
             self.headers['Accept'] = ','.join(self.acceptable_json_responses)
+
+        if timeout is not None:
+            self.headers['X-BIGDATA-MAX-QUERY-MILLIS'] = str(timeout)
 
     def default_graph_uri(self):
         return 'default-graph-uri'
@@ -176,7 +179,7 @@ class SPARQLServer(object):
         'application/sparql-results+xml',
     ]
 
-    def query(self, sparql, *args, **kwargs):
+    def query(self, sparql, timeout=None, *args, **kwargs):
         """Executes a SPARQL query. The return type varies based on what the
         SPARQL store responds with:
 
@@ -186,7 +189,7 @@ class SPARQLServer(object):
 
         :param sparql: The SPARQL to execute.
         :returns: The results of the query from the SPARQL store."""
-        return _Select(self, sparql, *args, **kwargs).execute()
+        return _Select(self, sparql, timeout, *args, **kwargs).execute()
 
     def update(self, sparql, **kwargs):
         """Executes a SPARQL update.
